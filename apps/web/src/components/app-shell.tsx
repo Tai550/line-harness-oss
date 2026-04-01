@@ -11,7 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
   return (
     <AuthGuard>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-brand-highlight">
         <Sidebar />
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>

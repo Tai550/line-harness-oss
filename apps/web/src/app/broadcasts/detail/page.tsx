@@ -69,31 +69,31 @@ export default function BroadcastDetailPage() {
   }, [broadcastId]);
 
   if (!Number.isFinite(broadcastId)) {
-    return <div className="text-sm text-red-500">配信IDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">配信IDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">配信詳細</h1>
-          <p className="text-sm text-gray-500">配信内容の編集、予約設定、手動送信を行います。</p>
+          <h1 className="text-2xl font-bold text-brand-black">配信詳細</h1>
+          <p className="text-sm text-brand-gray">配信内容の編集、予約設定、手動送信を行います。</p>
         </div>
-        <Link href="/broadcasts" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/broadcasts" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {broadcast ? (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">status: {broadcast.status}</span>
-              <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">total: {broadcast.total_count}</span>
-              <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">success: {broadcast.success_count}</span>
+              <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">status: {broadcast.status}</span>
+              <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">total: {broadcast.total_count}</span>
+              <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">success: {broadcast.success_count}</span>
             </div>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="配信タイトル" className="w-full border rounded px-3 py-2 text-sm" />
             <div className="grid md:grid-cols-3 gap-3">
@@ -122,7 +122,7 @@ export default function BroadcastDetailPage() {
                   });
                   await load();
                 }}
-                className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+                className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
               >
                 保存
               </button>
@@ -132,7 +132,7 @@ export default function BroadcastDetailPage() {
                   alert("送信を開始しました");
                   await load();
                 }}
-                className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
+                className="bg-brand-blue text-white px-4 py-2 rounded text-sm hover:bg-brand-blue"
               >
                 即時送信
               </button>
@@ -142,7 +142,7 @@ export default function BroadcastDetailPage() {
                   alert("セグメント送信を開始しました");
                   await load();
                 }}
-                className="bg-purple-500 text-white px-4 py-2 rounded text-sm hover:bg-purple-600"
+                className="bg-brand-black/80 text-white px-4 py-2 rounded text-sm hover:bg-brand-black"
               >
                 セグメント送信
               </button>

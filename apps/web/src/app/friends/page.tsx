@@ -59,8 +59,8 @@ export default function FriendsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">友だち管理</h1>
-        <span className="text-sm text-gray-500">合計 {total.toLocaleString()} 人</span>
+        <h1 className="text-2xl font-bold text-brand-black">友だち管理</h1>
+        <span className="text-sm text-brand-gray">合計 {total.toLocaleString()} 人</span>
       </div>
 
       <div className="mb-4 flex gap-2">
@@ -87,11 +87,11 @@ export default function FriendsPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400">読み込み中...</p>
+        <p className="text-brand-gray/70">読み込み中...</p>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[8px] shadow-sm overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs">
+            <thead className="bg-brand-highlight text-brand-gray text-xs">
               <tr>
                 <th className="text-left px-4 py-3">名前</th>
                 <th className="text-left px-4 py-3">ステータス</th>
@@ -99,31 +99,31 @@ export default function FriendsPage() {
                 <th className="text-left px-4 py-3">登録日</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-brand-lightgray">
               {friends.map((friend) => (
-                <tr key={friend.id} className="hover:bg-gray-50">
+                <tr key={friend.id} className="hover:bg-brand-highlight">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {friend.picture_url ? (
                         <img src={friend.picture_url} alt="" className="w-8 h-8 rounded-full" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs">
+                        <div className="w-8 h-8 rounded-full bg-brand-lightgray flex items-center justify-center text-xs">
                           {friend.display_name[0]}
                         </div>
                       )}
                       <span className="font-medium">{friend.display_name}</span>
                     </div>
-                    <a href={`/friends/detail?id=${friend.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:text-blue-700">
+                    <a href={`/friends/detail?id=${friend.id}`} className="mt-1 inline-block text-xs text-brand-orange hover:text-brand-blue">
                       詳細を見る
                     </a>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${friend.is_following ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${friend.is_following ? "bg-brand-orange/12 text-brand-orange" : "bg-brand-lightgray text-brand-gray"}`}>
                       {friend.is_following ? "フォロー中" : "ブロック"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{friend.score}</td>
-                  <td className="px-4 py-3 text-gray-400">{new Date(friend.created_at).toLocaleDateString("ja-JP")}</td>
+                  <td className="px-4 py-3 text-brand-black/60">{friend.score}</td>
+                  <td className="px-4 py-3 text-brand-gray/70">{new Date(friend.created_at).toLocaleDateString("ja-JP")}</td>
                 </tr>
               ))}
             </tbody>

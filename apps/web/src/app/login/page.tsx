@@ -30,35 +30,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-xl shadow p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold text-green-600 mb-6">LINE Harness</h1>
+    <div className="min-h-screen flex items-center justify-center bg-brand-highlight">
+      <div className="bg-white rounded-[8px] shadow-sm p-8 w-full max-w-md">
+        <div className="flex items-center gap-2 mb-8">
+          <div className="w-2 h-7 rounded-sm bg-brand-orange" />
+          <h1 className="text-2xl font-bold text-brand-black" style={{ fontFamily: "var(--font-en), var(--font-ja)" }}>
+            LINE Harness
+          </h1>
+        </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Worker URL</label>
+            <label className="block text-sm font-medium text-brand-black/70 mb-1">Worker URL</label>
             <input
               type="url"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
               placeholder="https://your-worker.workers.dev"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-brand-lightgray rounded-[6px] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">APIキー</label>
+            <label className="block text-sm font-medium text-brand-black/70 mb-1">APIキー</label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="your-api-key"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-brand-lightgray rounded-[6px] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition"
             />
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-brand-alert text-sm">{error}</p>}
           <button
             onClick={handleLogin}
             disabled={loading || !apiUrl || !apiKey}
-            className="w-full bg-green-500 text-white py-2 rounded font-medium hover:bg-green-600 disabled:opacity-50 transition"
+            className="btn-primary w-full py-2.5 text-sm"
           >
             {loading ? "接続中..." : "ログイン"}
           </button>

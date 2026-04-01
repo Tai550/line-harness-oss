@@ -53,26 +53,26 @@ export default function TemplateDetailPage() {
   }, [templateId]);
 
   if (!Number.isFinite(templateId)) {
-    return <div className="text-sm text-red-500">テンプレートIDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">テンプレートIDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">テンプレート詳細</h1>
-          <p className="text-sm text-gray-500">メッセージテンプレートの編集を行います。</p>
+          <h1 className="text-2xl font-bold text-brand-black">テンプレート詳細</h1>
+          <p className="text-sm text-brand-gray">メッセージテンプレートの編集を行います。</p>
         </div>
-        <Link href="/templates" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/templates" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {template ? (
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+        <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="テンプレート名" className="w-full border rounded px-3 py-2 text-sm" />
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="カテゴリ" className="w-full border rounded px-3 py-2 text-sm" />
           <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={10} placeholder="内容" className="w-full border rounded px-3 py-2 text-sm" />
@@ -81,7 +81,7 @@ export default function TemplateDetailPage() {
               await api.templates.update(template.id, { name, category, content });
               await load();
             }}
-            className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+            className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
           >
             保存
           </button>

@@ -51,9 +51,9 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">通知ルール</h1>
+      <h1 className="text-2xl font-bold text-brand-black">通知ルール</h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 space-y-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 space-y-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ルール名" className="w-full border rounded px-3 py-2 text-sm" />
         <select value={triggerEvent} onChange={(e) => setTriggerEvent(e.target.value)} className="w-full border rounded px-3 py-2 text-sm">
           <option value="friend_add">友だち追加</option>
@@ -62,16 +62,16 @@ export default function NotificationsPage() {
         </select>
         <input value={channels} onChange={(e) => setChannels(e.target.value)} placeholder='チャンネル (例: ["email","slack"])' className="w-full border rounded px-3 py-2 text-sm font-mono" />
         <input value={messageTemplate} onChange={(e) => setMessageTemplate(e.target.value)} placeholder="メッセージテンプレート" className="w-full border rounded px-3 py-2 text-sm" />
-        <button onClick={create} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">作成</button>
+        <button onClick={create} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange">作成</button>
       </div>
 
       <div className="space-y-3">
         {rules.map((rule) => (
-          <div key={rule.id} className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <div key={rule.id} className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-medium">{rule.name}</h3>
-                <p className="text-xs text-gray-400">{rule.trigger_event} → {rule.channels}</p>
+                <p className="text-xs text-brand-gray/70">{rule.trigger_event} → {rule.channels}</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -79,11 +79,11 @@ export default function NotificationsPage() {
                     await api.notifications.updateRule(rule.id, { isActive: !rule.is_active });
                     await load();
                   }}
-                  className={`text-sm px-3 py-1 rounded ${rule.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                  className={`text-sm px-3 py-1 rounded ${rule.is_active ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-lightgray text-brand-black/60"}`}
                 >
                   {rule.is_active ? "有効" : "無効"}
                 </button>
-                <button onClick={() => api.notifications.deleteRule(rule.id).then(load)} className="text-sm text-red-400 hover:text-red-600">削除</button>
+                <button onClick={() => api.notifications.deleteRule(rule.id).then(load)} className="text-sm text-brand-alert/60 hover:text-brand-alert">削除</button>
               </div>
             </div>
             <input
@@ -100,9 +100,9 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800">通知履歴</h2>
+          <h2 className="font-semibold text-brand-black">通知履歴</h2>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded px-3 py-2 text-sm">
             <option value="">すべて</option>
             <option value="pending">pending</option>
@@ -112,13 +112,13 @@ export default function NotificationsPage() {
         </div>
         <div className="space-y-3">
           {notifications.map((notification) => (
-            <div key={notification.id} className="rounded-xl border border-gray-100 p-4">
+            <div key={notification.id} className="rounded-[8px] border border-brand-lightgray/70 p-4">
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">{notification.channel}</span>
-                <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">{notification.status}</span>
-                <span className="text-xs text-gray-400">{new Date(notification.created_at).toLocaleString("ja-JP")}</span>
+                <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">{notification.channel}</span>
+                <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">{notification.status}</span>
+                <span className="text-xs text-brand-gray/70">{new Date(notification.created_at).toLocaleString("ja-JP")}</span>
               </div>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{notification.message}</p>
+              <p className="text-sm text-brand-black/80 whitespace-pre-wrap">{notification.message}</p>
             </div>
           ))}
         </div>

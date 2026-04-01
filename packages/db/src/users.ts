@@ -51,6 +51,13 @@ export async function linkFriendToUser(db: D1Database, userId: number, friendId:
     .run();
 }
 
+export async function unlinkFriendFromUser(db: D1Database, userId: number, friendId: number) {
+  await db
+    .prepare("DELETE FROM user_line_links WHERE user_id = ? AND friend_id = ?")
+    .bind(userId, friendId)
+    .run();
+}
+
 export async function getUserFriends(db: D1Database, userId: number) {
   const result = await db
     .prepare("SELECT f.* FROM friends f JOIN user_line_links ul ON ul.friend_id = f.id WHERE ul.user_id = ?")

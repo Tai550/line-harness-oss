@@ -27,7 +27,7 @@ export async function fetchApi<T>(path: string, options: RequestInit = {}): Prom
 export const api = {
   friends: {
     list: (params?: string) => fetchApi<{ success: boolean; data: unknown[]; total: number }>(`/api/friends${params ? `?${params}` : ""}`),
-    count: () => fetchApi<{ success: boolean; data: { count: number } }>("/api/friends/count"),
+    count: (accountId?: number) => fetchApi<{ success: boolean; data: { count: number } }>(`/api/friends/count${accountId ? `?accountId=${accountId}` : ""}`),
     get: (id: number) => fetchApi<{ success: boolean; data: unknown }>(`/api/friends/${id}`),
     addTag: (id: number, tagId: number) => fetchApi(`/api/friends/${id}/tags`, { method: "POST", body: JSON.stringify({ tagId }) }),
     removeTag: (id: number, tagId: number) => fetchApi(`/api/friends/${id}/tags/${tagId}`, { method: "DELETE" }),
@@ -144,6 +144,7 @@ export const api = {
     update: (id: number, data: unknown) => fetchApi(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: number) => fetchApi(`/api/users/${id}`, { method: "DELETE" }),
     linkFriend: (id: number, friendId: number) => fetchApi(`/api/users/${id}/link`, { method: "POST", body: JSON.stringify({ friendId }) }),
+    unlinkFriend: (id: number, friendId: number) => fetchApi(`/api/users/${id}/link/${friendId}`, { method: "DELETE" }),
     accounts: (id: number) => fetchApi<{ success: boolean; data: unknown[] }>(`/api/users/${id}/accounts`),
   },
   chats: {

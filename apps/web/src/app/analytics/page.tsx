@@ -170,11 +170,11 @@ export default function AnalyticsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">📊 メッセージ分析</h1>
+        <h1 className="text-2xl font-bold text-brand-black">📊 メッセージ分析</h1>
         {chartData.length > 0 && (
           <button
             onClick={handleExportCSV}
-            className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+            className="text-sm bg-brand-lightgray hover:bg-brand-lightgray text-brand-black/80 px-3 py-1.5 rounded transition-colors"
           >
             CSV出力
           </button>
@@ -182,12 +182,12 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-3">
           <select
             value={selectedAccountId ?? ""}
             onChange={(e) => setSelectedAccountId(Number(e.target.value) || null)}
-            className="border rounded-lg px-3 py-2 text-sm md:min-w-64 focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none"
+            className="border rounded-[6px] px-3 py-2 text-sm md:min-w-64 focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange outline-none"
           >
             <option value="">アカウントを選択</option>
             {accounts.map((a) => (
@@ -201,89 +201,89 @@ export default function AnalyticsPage() {
               type="date"
               value={dateRange.from}
               onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none"
+              className="border rounded-[6px] px-3 py-2 text-sm focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange outline-none"
             />
-            <span className="text-gray-400">〜</span>
+            <span className="text-brand-gray/70">〜</span>
             <input
               type="date"
               value={dateRange.to}
               max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
               onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none"
+              className="border rounded-[6px] px-3 py-2 text-sm focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange outline-none"
             />
           </div>
         </div>
       </div>
 
-      {loading && <p className="text-sm text-gray-500 mb-4">データを取得中...</p>}
-      {error && <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-4">{error}</p>}
+      {loading && <p className="text-sm text-brand-gray mb-4">データを取得中...</p>}
+      {error && <p className="rounded-[6px] bg-brand-alert/8 border border-brand-alert/20 px-4 py-3 text-sm text-brand-alert mb-4">{error}</p>}
 
       {/* Summary cards */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="rounded-xl bg-blue-50 border border-blue-100 p-5">
-            <p className="text-xs text-blue-600 mb-1">送信数（LINE公式）</p>
-            <p className="text-3xl font-bold text-blue-700">{summary.totalInsightDelivery.toLocaleString()}</p>
-            <p className="text-xs text-blue-400 mt-1">LINE Insight API集計</p>
+          <div className="rounded-[8px] bg-brand-blue/8 border border-brand-blue/15 p-5">
+            <p className="text-xs text-brand-orange mb-1">送信数（LINE公式）</p>
+            <p className="text-3xl font-bold text-brand-blue">{summary.totalInsightDelivery.toLocaleString()}</p>
+            <p className="text-xs text-brand-skyblue mt-1">LINE Insight API集計</p>
           </div>
-          <div className="rounded-xl bg-green-50 border border-green-100 p-5">
-            <p className="text-xs text-green-600 mb-1">送信数（ローカル記録）</p>
-            <p className="text-3xl font-bold text-green-700">{summary.totalOutbound.toLocaleString()}</p>
-            <p className="text-xs text-green-400 mt-1">アプリ経由の送信</p>
+          <div className="rounded-[8px] bg-brand-orange/8 border border-brand-orange/20 p-5">
+            <p className="text-xs text-brand-orange mb-1">送信数（ローカル記録）</p>
+            <p className="text-3xl font-bold text-brand-orange">{summary.totalOutbound.toLocaleString()}</p>
+            <p className="text-xs text-brand-orange mt-1">アプリ経由の送信</p>
           </div>
-          <div className="rounded-xl bg-purple-50 border border-purple-100 p-5">
-            <p className="text-xs text-purple-600 mb-1">受信数</p>
-            <p className="text-3xl font-bold text-purple-700">{summary.totalInbound.toLocaleString()}</p>
-            <p className="text-xs text-purple-400 mt-1">ユーザーからのメッセージ</p>
+          <div className="rounded-[8px] bg-brand-lightgray border border-brand-lightgray p-5">
+            <p className="text-xs text-brand-black/80 mb-1">受信数</p>
+            <p className="text-3xl font-bold text-brand-black">{summary.totalInbound.toLocaleString()}</p>
+            <p className="text-xs text-brand-black/60 mt-1">ユーザーからのメッセージ</p>
           </div>
         </div>
       )}
 
       {/* Daily chart */}
       {chartData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-5 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">日別推移</h2>
+        <div className="bg-white rounded-[8px] shadow-sm p-5 mb-6">
+          <h2 className="text-lg font-semibold text-brand-black mb-4">日別推移</h2>
           <div className="space-y-3">
             {chartData.map((day) => (
               <div key={day.date} className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 w-14 shrink-0 font-mono">{formatShortDate(day.date)}</span>
+                <span className="text-xs text-brand-gray w-14 shrink-0 font-mono">{formatShortDate(day.date)}</span>
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-blue-500 w-8 shrink-0">送信</span>
-                    <div className="flex-1 bg-gray-50 rounded-full h-5 overflow-hidden">
+                    <span className="text-xs text-brand-blue w-8 shrink-0">送信</span>
+                    <div className="flex-1 bg-brand-highlight rounded-full h-5 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-blue-400 transition-all"
+                        className="h-full rounded-full bg-brand-skyblue transition-all"
                         style={{
                           width: `${(day.insightDelivery / maxBarValue) * 100}%`,
                           minWidth: day.insightDelivery > 0 ? "4px" : "0",
                         }}
                       />
                     </div>
-                    <span className="text-xs text-gray-600 w-12 text-right font-mono">{day.insightDelivery.toLocaleString()}</span>
+                    <span className="text-xs text-brand-black/60 w-12 text-right font-mono">{day.insightDelivery.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-purple-500 w-8 shrink-0">受信</span>
-                    <div className="flex-1 bg-gray-50 rounded-full h-5 overflow-hidden">
+                    <span className="text-xs text-brand-black/70 w-8 shrink-0">受信</span>
+                    <div className="flex-1 bg-brand-highlight rounded-full h-5 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-purple-400 transition-all"
+                        className="h-full rounded-full bg-brand-black/60 transition-all"
                         style={{
                           width: `${(day.inbound / maxBarValue) * 100}%`,
                           minWidth: day.inbound > 0 ? "4px" : "0",
                         }}
                       />
                     </div>
-                    <span className="text-xs text-gray-600 w-12 text-right font-mono">{day.inbound.toLocaleString()}</span>
+                    <span className="text-xs text-brand-black/60 w-12 text-right font-mono">{day.inbound.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex gap-4 mt-4 pt-3 border-t text-xs text-gray-400">
+          <div className="flex gap-4 mt-4 pt-3 border-t text-xs text-brand-gray/70">
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-blue-400 inline-block" /> 送信（LINE Insight）
+              <span className="w-3 h-3 rounded-full bg-brand-skyblue inline-block" /> 送信（LINE Insight）
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-purple-400 inline-block" /> 受信（ローカル）
+              <span className="w-3 h-3 rounded-full bg-brand-black/60 inline-block" /> 受信（ローカル）
             </span>
           </div>
         </div>
@@ -292,51 +292,51 @@ export default function AnalyticsPage() {
       {/* Type breakdown */}
       {summary && (Object.keys(summary.inboundByType).length > 0 || Object.keys(summary.outboundByType).length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">受信メッセージ種別</h3>
+          <div className="bg-white rounded-[8px] shadow-sm p-5">
+            <h3 className="font-semibold text-brand-black mb-3">受信メッセージ種別</h3>
             {Object.entries(summary.inboundByType).length > 0 ? (
               <div className="space-y-2">
                 {Object.entries(summary.inboundByType)
                   .sort((a, b) => b[1] - a[1])
                   .map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between rounded-lg bg-purple-50 px-3 py-2 text-sm">
-                      <span className="text-gray-700">{type}</span>
-                      <span className="font-medium text-purple-700">{count.toLocaleString()}</span>
+                    <div key={type} className="flex items-center justify-between rounded-[6px] bg-brand-lightgray px-3 py-2 text-sm">
+                      <span className="text-brand-black/80">{type}</span>
+                      <span className="font-medium text-brand-black">{count.toLocaleString()}</span>
                     </div>
                   ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">データなし</p>
+              <p className="text-sm text-brand-gray/70">データなし</p>
             )}
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">送信メッセージ種別</h3>
+          <div className="bg-white rounded-[8px] shadow-sm p-5">
+            <h3 className="font-semibold text-brand-black mb-3">送信メッセージ種別</h3>
             {Object.entries(summary.outboundByType).length > 0 ? (
               <div className="space-y-2">
                 {Object.entries(summary.outboundByType)
                   .sort((a, b) => b[1] - a[1])
                   .map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-sm">
-                      <span className="text-gray-700">{type}</span>
-                      <span className="font-medium text-blue-700">{count.toLocaleString()}</span>
+                    <div key={type} className="flex items-center justify-between rounded-[6px] bg-brand-blue/8 px-3 py-2 text-sm">
+                      <span className="text-brand-black/80">{type}</span>
+                      <span className="font-medium text-brand-blue">{count.toLocaleString()}</span>
                     </div>
                   ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">データなし</p>
+              <p className="text-sm text-brand-gray/70">データなし</p>
             )}
           </div>
         </div>
       )}
 
       {!loading && !error && !data && selectedAccountId && (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-brand-gray/70">
           <p>データを読み込んでいます...</p>
         </div>
       )}
 
       {!loading && !selectedAccountId && (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-brand-gray/70">
           <p className="text-lg mb-2">アカウントを選択してください</p>
           <p className="text-sm">LINEアカウントを選択すると、メッセージの送受信データが表示されます</p>
         </div>

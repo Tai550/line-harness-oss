@@ -62,29 +62,29 @@ export default function AffiliateDetailPage() {
   }, [affiliateId]);
 
   if (!Number.isFinite(affiliateId)) {
-    return <div className="text-sm text-red-500">アフィリエイトIDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">アフィリエイトIDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">アフィリエイト詳細</h1>
-          <p className="text-sm text-gray-500">報酬率の更新と成果確認を行います。</p>
+          <h1 className="text-2xl font-bold text-brand-black">アフィリエイト詳細</h1>
+          <p className="text-sm text-brand-gray">報酬率の更新と成果確認を行います。</p>
         </div>
-        <Link href="/affiliates" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/affiliates" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {affiliate ? (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名前" className="w-full border rounded px-3 py-2 text-sm" />
-            <input value={affiliate.ref_code} readOnly className="w-full border rounded px-3 py-2 text-sm bg-gray-50 text-gray-500" />
+            <input value={affiliate.ref_code} readOnly className="w-full border rounded px-3 py-2 text-sm bg-brand-highlight text-brand-gray" />
             <div className="grid md:grid-cols-2 gap-3">
               <input type="number" step="0.01" value={commissionRate} onChange={(e) => setCommissionRate(e.target.value)} placeholder="報酬率" className="border rounded px-3 py-2 text-sm" />
               <button
@@ -92,7 +92,7 @@ export default function AffiliateDetailPage() {
                   await api.affiliates.update(affiliate.id, { isActive: !affiliate.is_active });
                   await load();
                 }}
-                className={`px-4 py-2 rounded text-sm ${affiliate.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                className={`px-4 py-2 rounded text-sm ${affiliate.is_active ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-lightgray text-brand-black/60"}`}
               >
                 {affiliate.is_active ? "有効" : "無効"}
               </button>
@@ -102,7 +102,7 @@ export default function AffiliateDetailPage() {
                 await api.affiliates.update(affiliate.id, { name, commissionRate: Number(commissionRate) });
                 await load();
               }}
-              className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+              className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
             >
               保存
             </button>
@@ -110,17 +110,17 @@ export default function AffiliateDetailPage() {
 
           {report ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-                <p className="text-2xl font-bold text-gray-800">{report.totalClicks}</p>
-                <p className="text-xs text-gray-400">クリック</p>
+              <div className="bg-white rounded-[8px] shadow-sm p-4 text-center">
+                <p className="text-2xl font-bold text-brand-black">{report.totalClicks}</p>
+                <p className="text-xs text-brand-gray/70">クリック</p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-                <p className="text-2xl font-bold text-gray-800">{report.totalConversions}</p>
-                <p className="text-xs text-gray-400">CV数</p>
+              <div className="bg-white rounded-[8px] shadow-sm p-4 text-center">
+                <p className="text-2xl font-bold text-brand-black">{report.totalConversions}</p>
+                <p className="text-xs text-brand-gray/70">CV数</p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-                <p className="text-2xl font-bold text-gray-800">¥{report.totalValue.toLocaleString()}</p>
-                <p className="text-xs text-gray-400">売上</p>
+              <div className="bg-white rounded-[8px] shadow-sm p-4 text-center">
+                <p className="text-2xl font-bold text-brand-black">¥{report.totalValue.toLocaleString()}</p>
+                <p className="text-xs text-brand-gray/70">売上</p>
               </div>
             </div>
           ) : null}

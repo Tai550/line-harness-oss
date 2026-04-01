@@ -37,26 +37,26 @@ export default function ConversionsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">コンバージョン</h1>
+      <h1 className="text-2xl font-bold text-brand-black mb-6">コンバージョン</h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 flex gap-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="コンバージョン名" className="flex-1 border rounded px-3 py-2 text-sm" />
         <input type="number" value={pointValue} onChange={(e) => setPointValue(e.target.value)} placeholder="ポイント値" className="w-28 border rounded px-3 py-2 text-sm" />
-        <button onClick={create} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">追加</button>
+        <button onClick={create} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange">追加</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {report.map((r, i) => (
-          <div key={i} className="bg-white rounded-xl shadow-sm p-4">
+          <div key={i} className="bg-white rounded-[8px] shadow-sm p-4">
             <h3 className="font-medium">{r.name}</h3>
             <div className="flex gap-4 mt-2">
               <div>
-                <p className="text-2xl font-bold text-green-600">{r.count}</p>
-                <p className="text-xs text-gray-400">件数</p>
+                <p className="text-2xl font-bold text-brand-orange">{r.count}</p>
+                <p className="text-xs text-brand-gray/70">件数</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-blue-600">¥{r.total_value?.toLocaleString() ?? 0}</p>
-                <p className="text-xs text-gray-400">合計値</p>
+                <p className="text-2xl font-bold text-brand-orange">¥{r.total_value?.toLocaleString() ?? 0}</p>
+                <p className="text-xs text-brand-gray/70">合計値</p>
               </div>
             </div>
           </div>

@@ -70,27 +70,27 @@ export default function UserDetailPage() {
   }, [userId]);
 
   if (!Number.isFinite(userId)) {
-    return <div className="text-sm text-red-500">ユーザーIDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">ユーザーIDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">ユーザー詳細</h1>
-          <p className="text-sm text-gray-500">顧客情報の更新と LINE友だちの紐付けを行います。</p>
+          <h1 className="text-2xl font-bold text-brand-black">ユーザー詳細</h1>
+          <p className="text-sm text-brand-gray">顧客情報の更新と LINE友だちの紐付けを行います。</p>
         </div>
-        <Link href="/users" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/users" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {user ? (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名前" className="w-full border rounded px-3 py-2 text-sm" />
             <div className="grid md:grid-cols-2 gap-3">
               <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="メール" className="border rounded px-3 py-2 text-sm" />
@@ -102,19 +102,30 @@ export default function UserDetailPage() {
                 await api.users.update(user.id, { name, email, phone, metadata });
                 await load();
               }}
-              className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+              className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
             >
               保存
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">紐付け済み LINE友だち</h2>
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">紐付け済み LINE友だち</h2>
             <div className="flex flex-wrap gap-2">
-              {linkedFriends.length === 0 ? <p className="text-sm text-gray-500">まだ紐付けがありません。</p> : null}
+              {linkedFriends.length === 0 ? <p className="text-sm text-brand-gray">まだ紐付けがありません。</p> : null}
               {linkedFriends.map((friend) => (
-                <span key={friend.id} className="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700">
+                <span key={friend.id} className="inline-flex items-center gap-1.5 rounded-full bg-brand-blue/8 pl-3 pr-1.5 py-1 text-sm text-brand-blue">
                   {friend.display_name}
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`${friend.display_name} の紐付けを解除しますか？`)) return;
+                      await api.users.unlinkFriend(user.id, friend.id);
+                      await load();
+                    }}
+                    className="w-5 h-5 rounded-full hover:bg-brand-alert/15 text-brand-gray hover:text-brand-alert flex items-center justify-center text-xs transition-colors"
+                    title="紐付け解除"
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
             </div>
@@ -136,7 +147,7 @@ export default function UserDetailPage() {
                   setSelectedFriendId("");
                   await load();
                 }}
-                className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
+                className="bg-brand-blue text-white px-4 py-2 rounded text-sm hover:bg-brand-blue"
               >
                 紐付け
               </button>

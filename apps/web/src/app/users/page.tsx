@@ -26,17 +26,17 @@ export default function UsersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">ユーザー管理</h1>
+      <h1 className="text-2xl font-bold text-brand-black mb-6">ユーザー管理</h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 flex gap-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名前" className="flex-1 border rounded px-3 py-2 text-sm" />
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="メール" className="flex-1 border rounded px-3 py-2 text-sm" />
-        <button onClick={create} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">作成</button>
+        <button onClick={create} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange">作成</button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[8px] shadow-sm overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs">
+          <thead className="bg-brand-highlight text-brand-gray text-xs">
             <tr>
               <th className="text-left px-4 py-3">名前</th>
               <th className="text-left px-4 py-3">メール</th>
@@ -44,15 +44,15 @@ export default function UsersPage() {
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-brand-lightgray">
             {users.map((u) => (
-              <tr key={u.id} className="hover:bg-gray-50">
+              <tr key={u.id} className="hover:bg-brand-highlight">
                 <td className="px-4 py-3">{u.name ?? "-"}</td>
-                <td className="px-4 py-3 text-gray-500">{u.email ?? "-"}</td>
-                <td className="px-4 py-3 text-gray-400">{new Date(u.created_at).toLocaleDateString("ja-JP")}</td>
+                <td className="px-4 py-3 text-brand-gray">{u.email ?? "-"}</td>
+                <td className="px-4 py-3 text-brand-gray/70">{new Date(u.created_at).toLocaleDateString("ja-JP")}</td>
                 <td className="px-4 py-3 text-right">
-                  <a href={`/users/detail?id=${u.id}`} className="mr-3 text-blue-500 hover:text-blue-700 text-xs">詳細</a>
-                  <button onClick={() => api.users.delete(u.id).then(load)} className="text-red-400 hover:text-red-600 text-xs">削除</button>
+                  <a href={`/users/detail?id=${u.id}`} className="mr-3 text-brand-blue hover:text-brand-blue text-xs">詳細</a>
+                  <button onClick={() => api.users.delete(u.id).then(load)} className="text-brand-alert/60 hover:text-brand-alert text-xs">削除</button>
                 </td>
               </tr>
             ))}

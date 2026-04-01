@@ -141,24 +141,24 @@ export default function AccountsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">LINEアカウント</h1>
+      <h1 className="text-2xl font-bold text-brand-black mb-6">LINEアカウント</h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 space-y-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="アカウント名" className="border rounded px-3 py-2 text-sm" />
           <input value={channelId} onChange={(e) => setChannelId(e.target.value)} placeholder="チャンネルID" className="border rounded px-3 py-2 text-sm" />
         </div>
         <input value={channelSecret} onChange={(e) => setChannelSecret(e.target.value)} placeholder="チャンネルシークレット" type="password" className="w-full border rounded px-3 py-2 text-sm" />
         <input value={channelAccessToken} onChange={(e) => setChannelAccessToken(e.target.value)} placeholder="チャンネルアクセストークン" type="password" className="w-full border rounded px-3 py-2 text-sm" />
-        {createError && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{createError}</p>}
-        <button onClick={create} disabled={creating} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600 disabled:opacity-50">
+        {createError && <p className="text-sm text-brand-alert bg-brand-alert/8 rounded px-3 py-2">{createError}</p>}
+        <button onClick={create} disabled={creating} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange disabled:opacity-50">
           {creating ? "追加中..." : "追加"}
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row md:items-end gap-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 flex flex-col md:flex-row md:items-end gap-3">
         <div>
-          <p className="text-sm font-medium text-gray-700 mb-1">分析対象日</p>
+          <p className="text-sm font-medium text-brand-black/80 mb-1">分析対象日</p>
           <input
             type="date"
             value={analyticsDate}
@@ -167,23 +167,23 @@ export default function AccountsPage() {
             className="border rounded px-3 py-2 text-sm"
           />
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-brand-gray">
           LINE Insight API は通常、翌日分まで集計完了です。既定値は前日です。
         </p>
       </div>
 
       <div className="space-y-3 mb-6">
         {accounts.map((a) => (
-          <div key={a.id} className="bg-white rounded-xl shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div key={a.id} className="bg-white rounded-[8px] shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h3 className="font-medium">{a.name}</h3>
-              <p className="text-xs text-gray-400">ID: {a.channel_id}</p>
+              <p className="text-xs text-brand-gray/70">ID: {a.channel_id}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => loadAnalytics(a)} className="text-sm px-3 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100">
+              <button onClick={() => loadAnalytics(a)} className="text-sm px-3 py-1 rounded bg-brand-blue/8 text-brand-blue hover:bg-brand-skyblue/15">
                 {loadingAnalyticsId === a.id ? "取得中..." : "分析を見る"}
               </button>
-              <button onClick={() => toggle(a)} className={`text-sm px-3 py-1 rounded ${a.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+              <button onClick={() => toggle(a)} className={`text-sm px-3 py-1 rounded ${a.is_active ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-lightgray text-brand-gray"}`}>
                 {a.is_active ? "有効" : "無効"}
               </button>
             </div>
@@ -192,103 +192,103 @@ export default function AccountsPage() {
       </div>
 
       {analyticsError ? (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{analyticsError}</div>
+        <div className="mb-6 rounded-[8px] border border-brand-alert/20 bg-brand-alert/8 p-4 text-sm text-brand-alert">{analyticsError}</div>
       ) : null}
 
       {selectedAnalytics ? (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="bg-white rounded-[8px] shadow-sm p-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-800">{selectedAnalytics.accountName} の分析</h2>
-                <p className="text-sm text-gray-500">集計日: {formatInsightDateLabel(selectedAnalytics.requestedDate)}</p>
+                <h2 className="text-lg font-semibold text-brand-black">{selectedAnalytics.accountName} の分析</h2>
+                <p className="text-sm text-brand-gray">集計日: {formatInsightDateLabel(selectedAnalytics.requestedDate)}</p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <button
                   onClick={() => exportAnalyticsAsCsv(selectedAnalytics)}
-                  className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 hover:bg-emerald-100"
+                  className="rounded-full bg-brand-green/8 px-3 py-1 text-brand-green hover:bg-brand-green/12"
                 >
                   CSV出力
                 </button>
                 <button
                   onClick={() => exportAnalyticsAsJson(selectedAnalytics)}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200"
+                  className="rounded-full bg-brand-lightgray px-3 py-1 text-brand-black/70 hover:bg-brand-lightgray"
                 >
                   JSON出力
                 </button>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">送信数: {selectedAnalytics.delivery.status}</span>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">友だち数: {selectedAnalytics.followers.status}</span>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">属性: {selectedAnalytics.demographic.available ? "available" : "unavailable"}</span>
+                <span className="rounded-full bg-brand-lightgray px-3 py-1 text-brand-black/60">送信数: {selectedAnalytics.delivery.status}</span>
+                <span className="rounded-full bg-brand-lightgray px-3 py-1 text-brand-black/60">友だち数: {selectedAnalytics.followers.status}</span>
+                <span className="rounded-full bg-brand-lightgray px-3 py-1 text-brand-black/60">属性: {selectedAnalytics.demographic.available ? "available" : "unavailable"}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
-                <h3 className="font-medium text-gray-800 mb-3">メッセージ送信数</h3>
+                <h3 className="font-medium text-brand-black mb-3">メッセージ送信数</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {deliveryMetrics.length > 0 ? deliveryMetrics.map(([key, value]) => (
-                    <div key={key} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">{formatMetricLabel(key)}</p>
-                      <p className="text-xl font-semibold text-gray-900">{Number(value).toLocaleString()}</p>
+                    <div key={key} className="rounded-[6px] border border-brand-lightgray/70 bg-brand-highlight p-3">
+                      <p className="text-xs text-brand-gray">{formatMetricLabel(key)}</p>
+                      <p className="text-xl font-semibold text-brand-black">{Number(value).toLocaleString()}</p>
                     </div>
-                  )) : <p className="text-sm text-gray-500 col-span-2">この日の送信数はまだ利用できません。</p>}
+                  )) : <p className="text-sm text-brand-gray col-span-2">この日の送信数はまだ利用できません。</p>}
                 </div>
               </div>
 
               <div>
-                <h3 className="font-medium text-gray-800 mb-3">友だち推移</h3>
+                <h3 className="font-medium text-brand-black mb-3">友だち推移</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {followerMetrics.length > 0 ? followerMetrics.map(([key, value]) => (
-                    <div key={key} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">{formatMetricLabel(key)}</p>
-                      <p className="text-xl font-semibold text-gray-900">{Number(value).toLocaleString()}</p>
+                    <div key={key} className="rounded-[6px] border border-brand-lightgray/70 bg-brand-highlight p-3">
+                      <p className="text-xs text-brand-gray">{formatMetricLabel(key)}</p>
+                      <p className="text-xl font-semibold text-brand-black">{Number(value).toLocaleString()}</p>
                     </div>
-                  )) : <p className="text-sm text-gray-500 col-span-2">この日の友だち数はまだ利用できません。</p>}
+                  )) : <p className="text-sm text-brand-gray col-span-2">この日の友だち数はまだ利用できません。</p>}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <h3 className="font-medium text-gray-800 mb-4">友だち属性</h3>
+          <div className="bg-white rounded-[8px] shadow-sm p-4">
+            <h3 className="font-medium text-brand-black mb-4">友だち属性</h3>
             {selectedAnalytics.demographic.available ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-2">性別 上位3件</p>
+                  <p className="text-sm font-medium text-brand-black/60 mb-2">性別 上位3件</p>
                   <div className="space-y-2">
                     {topGenders.map((item) => (
-                      <div key={item.label} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <div key={item.label} className="flex items-center justify-between rounded-[6px] bg-brand-highlight px-3 py-2 text-sm">
                         <span>{item.label}</span>
-                        <span className="font-medium text-gray-900">{item.percentage}%</span>
+                        <span className="font-medium text-brand-black">{item.percentage}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-2">年代 上位3件</p>
+                  <p className="text-sm font-medium text-brand-black/60 mb-2">年代 上位3件</p>
                   <div className="space-y-2">
                     {topAges.map((item) => (
-                      <div key={item.label} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <div key={item.label} className="flex items-center justify-between rounded-[6px] bg-brand-highlight px-3 py-2 text-sm">
                         <span>{item.label}</span>
-                        <span className="font-medium text-gray-900">{item.percentage}%</span>
+                        <span className="font-medium text-brand-black">{item.percentage}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-2">地域 上位3件</p>
+                  <p className="text-sm font-medium text-brand-black/60 mb-2">地域 上位3件</p>
                   <div className="space-y-2">
                     {topAreas.map((item) => (
-                      <div key={item.label} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <div key={item.label} className="flex items-center justify-between rounded-[6px] bg-brand-highlight px-3 py-2 text-sm">
                         <span>{item.label}</span>
-                        <span className="font-medium text-gray-900">{item.percentage}%</span>
+                        <span className="font-medium text-brand-black">{item.percentage}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-brand-gray">
                 属性情報は利用できません。友だち到達数が20未満、または対象アカウントの国設定が JP / TH / TW 以外の可能性があります。
               </p>
             )}

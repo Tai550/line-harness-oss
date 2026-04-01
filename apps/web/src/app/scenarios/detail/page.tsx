@@ -127,34 +127,34 @@ export default function ScenarioDetailPage() {
   };
 
   if (!Number.isFinite(scenarioId)) {
-    return <div className="text-sm text-red-500">シナリオIDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">シナリオIDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">シナリオ詳細</h1>
-          <p className="text-sm text-gray-500">ステップ配信の編集、ステップ追加、手動 enroll を行います。</p>
+          <h1 className="text-2xl font-bold text-brand-black">シナリオ詳細</h1>
+          <p className="text-sm text-brand-gray">ステップ配信の編集、ステップ追加、手動 enroll を行います。</p>
         </div>
-        <Link href="/scenarios" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/scenarios" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {scenario ? (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
             <div className="grid md:grid-cols-2 gap-3">
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="シナリオ名" className="border rounded px-3 py-2 text-sm" />
-              <input value={scenario.trigger_type} readOnly className="border rounded px-3 py-2 text-sm bg-gray-50 text-gray-500" />
+              <input value={scenario.trigger_type} readOnly className="border rounded px-3 py-2 text-sm bg-brand-highlight text-brand-gray" />
             </div>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="説明" className="w-full border rounded px-3 py-2 text-sm" />
             <div className="flex gap-2">
-              <button onClick={saveScenario} disabled={saving} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600 disabled:opacity-50">
+              <button onClick={saveScenario} disabled={saving} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange disabled:opacity-50">
                 {saving ? "保存中..." : "シナリオを保存"}
               </button>
               <button
@@ -162,15 +162,15 @@ export default function ScenarioDetailPage() {
                   await api.scenarios.update(scenario.id, { isActive: !scenario.is_active });
                   await load();
                 }}
-                className={`px-4 py-2 rounded text-sm ${scenario.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                className={`px-4 py-2 rounded text-sm ${scenario.is_active ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-lightgray text-brand-black/60"}`}
               >
                 {scenario.is_active ? "有効" : "無効"}
               </button>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">ステップ追加</h2>
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">ステップ追加</h2>
             <div className="grid md:grid-cols-3 gap-3">
               <input type="number" value={stepOrder} onChange={(e) => setStepOrder(e.target.value)} placeholder="順番" className="border rounded px-3 py-2 text-sm" />
               <input type="number" value={delayMinutes} onChange={(e) => setDelayMinutes(e.target.value)} placeholder="遅延分" className="border rounded px-3 py-2 text-sm" />
@@ -186,21 +186,21 @@ export default function ScenarioDetailPage() {
               <input value={conditionValue} onChange={(e) => setConditionValue(e.target.value)} placeholder="条件値 (任意)" className="border rounded px-3 py-2 text-sm" />
               <input type="number" value={nextStepOnFalse} onChange={(e) => setNextStepOnFalse(e.target.value)} placeholder="偽の場合の次step (任意)" className="border rounded px-3 py-2 text-sm" />
             </div>
-            <button onClick={createStep} className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">ステップ追加</button>
+            <button onClick={createStep} className="bg-brand-blue text-white px-4 py-2 rounded text-sm hover:bg-brand-blue">ステップ追加</button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-4">
-            <h2 className="font-semibold text-gray-800">ステップ一覧</h2>
-            {scenario.steps.length === 0 ? <p className="text-sm text-gray-500">まだステップがありません。</p> : null}
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-4">
+            <h2 className="font-semibold text-brand-black">ステップ一覧</h2>
+            {scenario.steps.length === 0 ? <p className="text-sm text-brand-gray">まだステップがありません。</p> : null}
             {scenario.steps.map((step) => (
-              <div key={step.id} className="rounded-xl border border-gray-100 p-4 space-y-3">
+              <div key={step.id} className="rounded-[8px] border border-brand-lightgray/70 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-600">STEP {step.step_order}</span>
-                    <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">{step.message_type}</span>
-                    <span className="text-xs text-gray-400">{step.delay_minutes} 分後</span>
+                    <span className="rounded bg-brand-blue/8 px-2 py-1 text-xs text-brand-orange">STEP {step.step_order}</span>
+                    <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">{step.message_type}</span>
+                    <span className="text-xs text-brand-gray/70">{step.delay_minutes} 分後</span>
                   </div>
-                  <button onClick={() => deleteStep(step.id)} className="text-sm text-red-500 hover:text-red-700">削除</button>
+                  <button onClick={() => deleteStep(step.id)} className="text-sm text-brand-alert hover:text-brand-alert">削除</button>
                 </div>
                 <textarea
                   defaultValue={step.message_content}
@@ -260,8 +260,8 @@ export default function ScenarioDetailPage() {
             ))}
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">友だちへ手動 enroll</h2>
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">友だちへ手動 enroll</h2>
             <div className="flex flex-col md:flex-row gap-3">
               <select value={friendId} onChange={(e) => setFriendId(e.target.value)} className="border rounded px-3 py-2 text-sm md:min-w-72">
                 <option value="">友だちを選択</option>
@@ -277,7 +277,7 @@ export default function ScenarioDetailPage() {
                   await api.scenarios.enroll(scenario.id, Number(friendId));
                   alert("シナリオに enroll しました");
                 }}
-                className="bg-purple-500 text-white px-4 py-2 rounded text-sm hover:bg-purple-600"
+                className="bg-brand-black/80 text-white px-4 py-2 rounded text-sm hover:bg-brand-black"
               >
                 enroll
               </button>

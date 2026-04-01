@@ -41,13 +41,13 @@ export default function BroadcastsPage() {
   };
 
   const statusLabel = (s: string) => ({ draft: "下書き", scheduled: "予約済", sending: "送信中", sent: "送信済", failed: "失敗" }[s] ?? s);
-  const statusColor = (s: string) => ({ draft: "bg-gray-100 text-gray-600", scheduled: "bg-blue-100 text-blue-600", sending: "bg-yellow-100 text-yellow-600", sent: "bg-green-100 text-green-600", failed: "bg-red-100 text-red-600" }[s] ?? "");
+  const statusColor = (s: string) => ({ draft: "bg-brand-lightgray text-brand-black/60", scheduled: "bg-brand-skyblue/15 text-brand-orange", sending: "bg-brand-gold/15 text-brand-black/70", sent: "bg-brand-orange/12 text-brand-orange", failed: "bg-brand-alert/10 text-brand-alert" }[s] ?? "");
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">一斉配信</h1>
+      <h1 className="text-2xl font-bold text-brand-black mb-6">一斉配信</h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 space-y-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 space-y-3">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="配信タイトル" className="w-full border rounded px-3 py-2 text-sm" />
         <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="メッセージ内容" rows={3} className="w-full border rounded px-3 py-2 text-sm" />
         <div className="flex gap-3">
@@ -55,14 +55,14 @@ export default function BroadcastsPage() {
             <option value="all">全員</option>
             <option value="tag">タグ絞込</option>
           </select>
-          <button onClick={create} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">作成</button>
+          <button onClick={create} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange">作成</button>
         </div>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : (
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : (
         <div className="space-y-3">
           {broadcasts.map((b) => (
-            <div key={b.id} className="bg-white rounded-xl shadow-sm p-4">
+            <div key={b.id} className="bg-white rounded-[8px] shadow-sm p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -70,15 +70,15 @@ export default function BroadcastsPage() {
                     <span className={`text-xs px-2 py-0.5 rounded ${statusColor(b.status)}`}>{statusLabel(b.status)}</span>
                   </div>
                   {b.status === "sent" && (
-                    <p className="text-xs text-gray-400 mt-1">{b.success_count}/{b.total_count} 件送信完了</p>
+                    <p className="text-xs text-brand-gray/70 mt-1">{b.success_count}/{b.total_count} 件送信完了</p>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <a href={`/broadcasts/detail?id=${b.id}`} className="text-sm text-blue-500 hover:underline">編集</a>
+                  <a href={`/broadcasts/detail?id=${b.id}`} className="text-sm text-brand-blue hover:underline">編集</a>
                   {b.status === "draft" && (
-                    <button onClick={() => send(b.id)} className="text-sm bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600">送信</button>
+                    <button onClick={() => send(b.id)} className="text-sm bg-brand-orange text-white px-3 py-1.5 rounded hover:bg-brand-orange">送信</button>
                   )}
-                  <button onClick={() => del(b.id)} className="text-sm text-red-400 hover:text-red-600">削除</button>
+                  <button onClick={() => del(b.id)} className="text-sm text-brand-alert/60 hover:text-brand-alert">削除</button>
                 </div>
               </div>
             </div>

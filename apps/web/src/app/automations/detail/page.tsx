@@ -74,27 +74,27 @@ export default function AutomationDetailPage() {
   }, [automationId]);
 
   if (!Number.isFinite(automationId)) {
-    return <div className="text-sm text-red-500">オートメーションIDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">オートメーションIDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">オートメーション詳細</h1>
-          <p className="text-sm text-gray-500">条件・アクション JSON と実行ログを管理します。</p>
+          <h1 className="text-2xl font-bold text-brand-black">オートメーション詳細</h1>
+          <p className="text-sm text-brand-gray">条件・アクション JSON と実行ログを管理します。</p>
         </div>
-        <Link href="/automations" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/automations" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {automation ? (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ルール名" className="w-full border rounded px-3 py-2 text-sm" />
             <div className="grid md:grid-cols-3 gap-3">
               <select value={triggerEvent} onChange={(e) => setTriggerEvent(e.target.value)} className="border rounded px-3 py-2 text-sm">
@@ -109,17 +109,17 @@ export default function AutomationDetailPage() {
                   await api.automations.update(automation.id, { isActive: !automation.is_active });
                   await load();
                 }}
-                className={`px-4 py-2 rounded text-sm ${automation.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                className={`px-4 py-2 rounded text-sm ${automation.is_active ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-lightgray text-brand-black/60"}`}
               >
                 {automation.is_active ? "有効" : "無効"}
               </button>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-gray-500">条件 JSON</label>
+              <label className="mb-1 block text-xs text-brand-gray">条件 JSON</label>
               <textarea value={conditions} onChange={(e) => setConditions(e.target.value)} rows={4} className="w-full border rounded px-3 py-2 text-sm font-mono" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-gray-500">アクション JSON</label>
+              <label className="mb-1 block text-xs text-brand-gray">アクション JSON</label>
               <textarea value={actions} onChange={(e) => setActions(e.target.value)} rows={6} className="w-full border rounded px-3 py-2 text-sm font-mono" />
             </div>
             <button
@@ -133,25 +133,25 @@ export default function AutomationDetailPage() {
                 });
                 await load();
               }}
-              className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+              className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
             >
               保存
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">実行ログ</h2>
-            {logs.length === 0 ? <p className="text-sm text-gray-500">ログはまだありません。</p> : null}
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">実行ログ</h2>
+            {logs.length === 0 ? <p className="text-sm text-brand-gray">ログはまだありません。</p> : null}
             {logs.map((log) => (
-              <div key={log.id} className="rounded-xl border border-gray-100 p-4">
+              <div key={log.id} className="rounded-[8px] border border-brand-lightgray/70 p-4">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className={`rounded px-2 py-1 text-xs ${log.status === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{log.status}</span>
-                  <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">{log.trigger_event}</span>
-                  <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleString("ja-JP")}</span>
-                  {log.friend_id ? <span className="text-xs text-gray-400">friend_id: {log.friend_id}</span> : null}
+                  <span className={`rounded px-2 py-1 text-xs ${log.status === "success" ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-alert/8 text-brand-alert"}`}>{log.status}</span>
+                  <span className="rounded bg-brand-lightgray px-2 py-1 text-xs text-brand-black/60">{log.trigger_event}</span>
+                  <span className="text-xs text-brand-gray/70">{new Date(log.created_at).toLocaleString("ja-JP")}</span>
+                  {log.friend_id ? <span className="text-xs text-brand-gray/70">friend_id: {log.friend_id}</span> : null}
                 </div>
-                <pre className="overflow-x-auto rounded bg-gray-50 p-3 text-xs text-gray-700">{log.actions_executed}</pre>
-                {log.error ? <p className="mt-2 text-sm text-red-600">{log.error}</p> : null}
+                <pre className="overflow-x-auto rounded bg-brand-highlight p-3 text-xs text-brand-black/80">{log.actions_executed}</pre>
+                {log.error ? <p className="mt-2 text-sm text-brand-alert">{log.error}</p> : null}
               </div>
             ))}
           </div>

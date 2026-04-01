@@ -69,51 +69,51 @@ export default function FriendDetailPage() {
   }, [friendId]);
 
   if (!Number.isFinite(friendId)) {
-    return <div className="text-sm text-red-500">友だちIDが不正です。</div>;
+    return <div className="text-sm text-brand-alert">友だちIDが不正です。</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">友だち詳細</h1>
-          <p className="text-sm text-gray-500">タグ、メタデータ、個別メッセージ送信を管理します。</p>
+          <h1 className="text-2xl font-bold text-brand-black">友だち詳細</h1>
+          <p className="text-sm text-brand-gray">タグ、メタデータ、個別メッセージ送信を管理します。</p>
         </div>
-        <Link href="/friends" className="text-sm text-blue-600 hover:text-blue-700">
+        <Link href="/friends" className="text-sm text-brand-orange hover:text-brand-blue">
           一覧へ戻る
         </Link>
       </div>
 
-      {loading ? <p className="text-gray-400">読み込み中...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-brand-gray/70">読み込み中...</p> : null}
+      {error ? <p className="rounded-[6px] bg-brand-alert/8 px-4 py-3 text-sm text-brand-alert">{error}</p> : null}
 
       {friend ? (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="bg-white rounded-[8px] shadow-sm p-4">
             <div className="flex items-start gap-4">
               {friend.picture_url ? (
                 <img src={friend.picture_url} alt="" className="w-16 h-16 rounded-full" />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-xl">
+                <div className="w-16 h-16 rounded-full bg-brand-lightgray flex items-center justify-center text-xl">
                   {friend.display_name[0]}
                 </div>
               )}
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-gray-900">{friend.display_name}</h2>
-                  <span className={`px-2 py-1 rounded text-xs ${friend.is_following ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                  <h2 className="text-lg font-semibold text-brand-black">{friend.display_name}</h2>
+                  <span className={`px-2 py-1 rounded text-xs ${friend.is_following ? "bg-brand-orange/8 text-brand-orange" : "bg-brand-lightgray text-brand-black/60"}`}>
                     {friend.is_following ? "フォロー中" : "ブロック"}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500">LINE User ID: {friend.line_user_id}</p>
-                <p className="text-sm text-gray-500">スコア: {friend.score}</p>
-                {friend.status_message ? <p className="text-sm text-gray-500">ステータスメッセージ: {friend.status_message}</p> : null}
+                <p className="text-sm text-brand-gray">LINE User ID: {friend.line_user_id}</p>
+                <p className="text-sm text-brand-gray">スコア: {friend.score}</p>
+                {friend.status_message ? <p className="text-sm text-brand-gray">ステータスメッセージ: {friend.status_message}</p> : null}
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">タグ管理</h2>
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">タグ管理</h2>
             <div className="flex flex-wrap gap-2">
               {friend.tags.map((tag) => (
                 <span key={tag.id} className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm" style={{ backgroundColor: `${tag.color}22`, color: tag.color }}>
@@ -148,15 +148,15 @@ export default function FriendDetailPage() {
                   setSelectedTagId("");
                   await load();
                 }}
-                className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
+                className="bg-brand-blue text-white px-4 py-2 rounded text-sm hover:bg-brand-blue"
               >
                 タグ追加
               </button>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">メタデータ</h2>
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">メタデータ</h2>
             <textarea value={metadataText} onChange={(e) => setMetadataText(e.target.value)} rows={8} className="w-full border rounded px-3 py-2 text-sm font-mono" />
             <button
               onClick={async () => {
@@ -164,14 +164,14 @@ export default function FriendDetailPage() {
                 await api.friends.setMetadata(friend.id, parsed);
                 await load();
               }}
-              className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+              className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
             >
               メタデータ保存
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="font-semibold text-gray-800">個別メッセージ送信</h2>
+          <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
+            <h2 className="font-semibold text-brand-black">個別メッセージ送信</h2>
             <select value={messageType} onChange={(e) => setMessageType(e.target.value)} className="border rounded px-3 py-2 text-sm">
               <option value="text">text</option>
               <option value="image">image</option>
@@ -185,7 +185,7 @@ export default function FriendDetailPage() {
                 setMessageContent("");
                 alert("送信しました");
               }}
-              className="bg-purple-500 text-white px-4 py-2 rounded text-sm hover:bg-purple-600"
+              className="bg-brand-black/80 text-white px-4 py-2 rounded text-sm hover:bg-brand-black"
             >
               送信
             </button>

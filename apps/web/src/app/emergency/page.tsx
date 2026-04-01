@@ -24,19 +24,19 @@ export default function EmergencyPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-red-600 mb-2">緊急対応</h1>
-      <p className="text-sm text-gray-500 mb-6">この操作は取り消せません。慎重に実行してください。</p>
+      <h1 className="text-2xl font-bold text-brand-alert mb-2">緊急対応</h1>
+      <p className="text-sm text-brand-gray mb-6">この操作は取り消せません。慎重に実行してください。</p>
 
       {message && (
-        <div className={`rounded-lg p-3 mb-4 text-sm ${message.startsWith("エラー") ? "bg-red-50 text-red-700" : "bg-yellow-50 text-yellow-700"}`}>
+        <div className={`rounded-[6px] p-3 mb-4 text-sm ${message.startsWith("エラー") ? "bg-brand-alert/8 text-brand-alert" : "bg-brand-gold/10 text-brand-black"}`}>
           {message}
         </div>
       )}
 
       <div className="space-y-4">
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-red-100">
-          <h3 className="font-medium text-red-700">全配信停止</h3>
-          <p className="text-sm text-gray-500 mb-3">スケジュール済みの配信をすべてドラフトに戻します</p>
+        <div className="bg-white rounded-[8px] shadow-sm p-4 border border-brand-alert/15">
+          <h3 className="font-medium text-brand-alert">全配信停止</h3>
+          <p className="text-sm text-brand-gray mb-3">スケジュール済みの配信をすべてドラフトに戻します</p>
           <button
             onClick={() => action("全配信停止", async () => {
               const broadcasts = await api.broadcasts.list();
@@ -44,15 +44,15 @@ export default function EmergencyPage() {
                 if (b.status === "scheduled") await api.broadcasts.update(b.id, { status: "draft" });
               }
             })}
-            className={`px-4 py-2 rounded text-sm font-medium ${confirmed === "全配信停止" ? "bg-red-500 text-white" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
+            className={`px-4 py-2 rounded text-sm font-medium ${confirmed === "全配信停止" ? "bg-brand-alert/80 text-white" : "bg-brand-alert/8 text-brand-alert hover:bg-brand-alert/10"}`}
           >
             {confirmed === "全配信停止" ? "本当に実行する" : "全配信停止"}
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-orange-100">
-          <h3 className="font-medium text-orange-700">全シナリオ停止</h3>
-          <p className="text-sm text-gray-500 mb-3">アクティブなシナリオをすべて無効化します</p>
+        <div className="bg-white rounded-[8px] shadow-sm p-4 border border-brand-orange/15">
+          <h3 className="font-medium text-brand-orange">全シナリオ停止</h3>
+          <p className="text-sm text-brand-gray mb-3">アクティブなシナリオをすべて無効化します</p>
           <button
             onClick={() => action("全シナリオ停止", async () => {
               const scenarios = await api.scenarios.list();
@@ -60,7 +60,7 @@ export default function EmergencyPage() {
                 if (s.is_active) await api.scenarios.update(s.id, { isActive: false });
               }
             })}
-            className={`px-4 py-2 rounded text-sm font-medium ${confirmed === "全シナリオ停止" ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600 hover:bg-orange-100"}`}
+            className={`px-4 py-2 rounded text-sm font-medium ${confirmed === "全シナリオ停止" ? "bg-brand-orange/80 text-white" : "bg-brand-orange/8 text-brand-orange hover:bg-brand-orange/12"}`}
           >
             {confirmed === "全シナリオ停止" ? "本当に実行する" : "全シナリオ停止"}
           </button>

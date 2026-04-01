@@ -30,24 +30,24 @@ export default function RemindersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">リマインダー</h1>
+      <h1 className="text-2xl font-bold text-brand-black mb-6">リマインダー</h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 space-y-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 mb-6 space-y-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="リマインダー名" className="w-full border rounded px-3 py-2 text-sm" />
         <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="説明 (任意)" className="w-full border rounded px-3 py-2 text-sm" />
-        <button onClick={create} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">作成</button>
+        <button onClick={create} className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange">作成</button>
       </div>
 
       <div className="space-y-3">
         {reminders.map((r) => (
-          <div key={r.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+          <div key={r.id} className="bg-white rounded-[8px] shadow-sm p-4 flex items-center justify-between">
             <div>
               <h3 className="font-medium">{r.name}</h3>
-              {r.description && <p className="text-sm text-gray-400">{r.description}</p>}
+              {r.description && <p className="text-sm text-brand-gray/70">{r.description}</p>}
             </div>
             <div className="flex gap-2">
-              <a href={`/reminders/detail?id=${r.id}`} className="text-sm text-blue-500 hover:underline">編集</a>
-              <button onClick={() => del(r.id)} className="text-sm text-red-400 hover:text-red-600">削除</button>
+              <a href={`/reminders/detail?id=${r.id}`} className="text-sm text-brand-blue hover:underline">編集</a>
+              <button onClick={() => del(r.id)} className="text-sm text-brand-alert/60 hover:text-brand-alert">削除</button>
             </div>
           </div>
         ))}

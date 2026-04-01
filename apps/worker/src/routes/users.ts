@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getUsers, getUserById, createUser, updateUser, deleteUser, linkFriendToUser, getUserFriends } from "@line-crm/db";
+import { getUsers, getUserById, createUser, updateUser, deleteUser, linkFriendToUser, unlinkFriendFromUser, getUserFriends } from "@line-crm/db";
 
 type Env = { DB: D1Database };
 
@@ -40,6 +40,13 @@ app.post("/api/users/:id/link", async (c) => {
   const userId = Number(c.req.param("id"));
   const body = await c.req.json<{ friendId: number }>();
   await linkFriendToUser(c.env.DB, userId, body.friendId);
+  return c.json({ success: true });
+});
+
+app.delete("/api/users/:id/link/:friendId", async (c) => {
+  const userId = Number(c.req.param("id"));
+  const friendId = Number(c.req.param("friendId"));
+  await unlinkFriendFromUser(c.env.DB, userId, friendId);
   return c.json({ success: true });
 });
 

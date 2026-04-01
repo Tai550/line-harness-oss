@@ -59,6 +59,15 @@ L-step/Utage代替。AI（CC）ネイティブ設計。
 - [x] Vercel デプロイ修正 — .vercelignore, cleanUrls, outputFileTracingRoot
 - [x] Webhook 詳細ログ — waitUntil()内の各ステップログ出力
 
+### Round 4.5 (UI/UX改善) ✅ 完了 2026-04-01
+- [x] THE PERSONブランドガイドラインUI適用 — カラーパレット、フォント、スペーシング、全27ページ
+- [x] ダークサイドバー — #1C1C1C背景 + オレンジアクセント + 英語セクションラベル
+- [x] Google Fonts導入 — Montserrat (EN) + Noto Sans JP (JA)
+- [x] CSS変数デザインシステム — @theme でブランドトークン一元管理
+- [x] アカウント別ダッシュボード — 合計表示を廃止、アカウント切り替え式に変更
+- [x] 友だち数アカウント別フィルタ — Worker APIの /api/friends/count に accountId パラメータ追加
+- [x] ユーザー紐付け解除機能 — DELETE /api/users/:id/link/:friendId + UIに×ボタン追加
+
 ### Round 5 (予定)
 - [ ] メール配信連携 (SendGrid/SES)
 - [ ] SMS連携

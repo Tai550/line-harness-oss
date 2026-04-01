@@ -78,11 +78,11 @@ export default function ChatsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-[8px] shadow-sm p-4 space-y-3">
         <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">チャット</h1>
-            <p className="text-sm text-gray-500">有人対応、解決ステータス管理、オペレーター管理を行います。</p>
+            <h1 className="text-2xl font-bold text-brand-black">チャット</h1>
+            <p className="text-sm text-brand-gray">有人対応、解決ステータス管理、オペレーター管理を行います。</p>
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded px-3 py-2 text-sm">
             <option value="">すべて</option>
@@ -103,21 +103,21 @@ export default function ChatsPage() {
               setOperatorEmail("");
               await loadOperators();
             }}
-            className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+            className="bg-brand-orange text-white px-4 py-2 rounded text-sm hover:bg-brand-orange"
           >
             追加
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
           {operators.map((operator) => (
-            <span key={operator.id} className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
+            <span key={operator.id} className="inline-flex items-center gap-2 rounded-full bg-brand-lightgray px-3 py-1 text-sm text-brand-black/80">
               {operator.name}
               <button
                 onClick={async () => {
                   await api.operators.delete(operator.id);
                   await loadOperators();
                 }}
-                className="text-xs text-gray-500 hover:text-red-600"
+                className="text-xs text-brand-gray hover:text-brand-alert"
               >
                 ×
               </button>
@@ -127,7 +127,7 @@ export default function ChatsPage() {
       </div>
 
       <div className="flex h-[calc(100vh-14rem)] gap-4">
-        <div className="w-72 bg-white rounded-xl shadow-sm overflow-y-auto">
+        <div className="w-72 bg-white rounded-[8px] shadow-sm overflow-y-auto">
           <div className="p-3 border-b">
             <h2 className="font-medium text-sm">チャット一覧</h2>
           </div>
@@ -138,22 +138,22 @@ export default function ChatsPage() {
                 loadChat(chat.id);
                 loadChats();
               }}
-              className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 border-b text-left ${selectedChat?.id === chat.id ? "bg-green-50" : ""}`}
+              className={`w-full p-3 flex items-center gap-3 hover:bg-brand-highlight border-b text-left ${selectedChat?.id === chat.id ? "bg-brand-orange/8" : ""}`}
             >
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm shrink-0">
+              <div className="w-10 h-10 rounded-full bg-brand-lightgray flex items-center justify-center text-sm shrink-0">
                 {chat.friend_name[0]}
               </div>
               <div className="min-w-0">
                 <p className="font-medium text-sm truncate">{chat.friend_name}</p>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${chat.status === "unread" ? "bg-red-100 text-red-600" : chat.status === "resolved" ? "bg-gray-100 text-gray-500" : "bg-green-100 text-green-700"}`}>{chat.status}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${chat.status === "unread" ? "bg-brand-alert/10 text-brand-alert" : chat.status === "resolved" ? "bg-brand-lightgray text-brand-gray" : "bg-brand-orange/12 text-brand-orange"}`}>{chat.status}</span>
                 </div>
               </div>
             </button>
           ))}
         </div>
 
-        <div className="flex-1 bg-white rounded-xl shadow-sm flex flex-col">
+        <div className="flex-1 bg-white rounded-[8px] shadow-sm flex flex-col">
           {selectedChat ? (
             <>
               <div className="p-4 border-b flex flex-wrap items-center justify-between gap-2">
@@ -163,7 +163,7 @@ export default function ChatsPage() {
                     <button
                       key={status}
                       onClick={() => api.chats.updateStatus(selectedChat.id, status).then(async () => { await loadChat(selectedChat.id); await loadChats(); })}
-                      className={`text-sm px-3 py-1 rounded ${selectedChat.status === status ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                      className={`text-sm px-3 py-1 rounded ${selectedChat.status === status ? "bg-brand-orange text-white" : "bg-brand-lightgray text-brand-black/60"}`}
                     >
                       {status}
                     </button>
@@ -173,9 +173,9 @@ export default function ChatsPage() {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {[...selectedChat.messages].reverse().map((msg) => (
                   <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm ${msg.direction === "outbound" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-800"}`}>
+                    <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm ${msg.direction === "outbound" ? "bg-brand-orange text-white" : "bg-brand-lightgray text-brand-black"}`}>
                       <p>{msg.content}</p>
-                      <p className={`mt-1 text-[10px] ${msg.direction === "outbound" ? "text-green-50" : "text-gray-400"}`}>
+                      <p className={`mt-1 text-[10px] ${msg.direction === "outbound" ? "text-brand-offwhite" : "text-brand-gray/70"}`}>
                         {new Date(msg.created_at).toLocaleString("ja-JP")}
                       </p>
                     </div>
@@ -194,13 +194,13 @@ export default function ChatsPage() {
                     }
                   }}
                   placeholder="メッセージを入力..."
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                  className="flex-1 border rounded-[6px] px-3 py-2 text-sm"
                 />
-                <button onClick={send} className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">送信</button>
+                <button onClick={send} className="bg-brand-orange text-white px-4 py-2 rounded-[6px] text-sm hover:bg-brand-orange">送信</button>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">チャットを選択してください</div>
+            <div className="flex-1 flex items-center justify-center text-brand-gray/70 text-sm">チャットを選択してください</div>
           )}
         </div>
       </div>

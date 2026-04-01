@@ -1,1 +1,114 @@
 @import "tailwindcss";
+
+@theme {
+  /* THE PERSON Brand Colors */
+  --color-brand-orange: #E2792E;
+  --color-brand-orange-light: #F5A623;
+  --color-brand-gold: #FFB11B;
+  --color-brand-black: #1C1C1C;
+  --color-brand-offwhite: #FFFFFB;
+  --color-brand-gray: #B4B5B4;
+  --color-brand-lightgray: #EEEDEB;
+  --color-brand-warmgray: #f0ebe4;
+  --color-brand-highlight: #FBF8F6;
+  --color-brand-green: #227D51;
+  --color-brand-blue: #004D80;
+  --color-brand-skyblue: #51A8DD;
+  --color-brand-alert: #B83232;
+
+  /* Chart palette */
+  --color-chart-orange: #E2792E;
+  --color-chart-gold: #FFB11B;
+  --color-chart-green: #2E7D4F;
+  --color-chart-blue: #2E6FA8;
+  --color-chart-gray: #B4B5B4;
+  --color-chart-alert: #B83232;
+
+  /* Font families */
+  --font-en: 'Montserrat', sans-serif;
+  --font-ja: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+}
+
+/* Base layer: typography, background */
+body {
+  font-family: var(--font-ja);
+  color: var(--color-brand-black);
+  background-color: var(--color-brand-highlight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings use EN font for numeric/latin, JA for Japanese */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-en), var(--font-ja);
+  font-weight: 700;
+}
+
+/* Section labels: uppercase, letter-spacing */
+.section-label {
+  font-family: var(--font-en), var(--font-ja);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-brand-gray);
+}
+
+/* Brand accent border top for sections */
+.brand-section-top {
+  border-top: 3px solid var(--color-brand-orange);
+}
+
+/* KPI numbers */
+.kpi-number {
+  font-family: var(--font-en), var(--font-ja);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Primary button */
+.btn-primary {
+  background-color: var(--color-brand-orange);
+  color: white;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover {
+  opacity: 0.85;
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+}
+
+/* Secondary button (outline) */
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-brand-orange);
+  border: 1.5px solid var(--color-brand-orange);
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.15s;
+}
+.btn-secondary:hover {
+  background-color: rgba(226, 121, 46, 0.06);
+}
+
+/* Card styling */
+.brand-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(28, 28, 28, 0.06);
+}
+
+/* Scrollbar subtle styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-lightgray);
+  border-radius: 3px;
+}

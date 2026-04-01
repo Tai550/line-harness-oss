@@ -27,7 +27,8 @@ app.get("/api/friends", async (c) => {
 });
 
 app.get("/api/friends/count", async (c) => {
-  const count = await getFriendCount(c.env.DB);
+  const accountId = c.req.query("accountId") ? Number(c.req.query("accountId")) : undefined;
+  const count = await getFriendCount(c.env.DB, accountId);
   return c.json({ success: true, data: { count } });
 });
 
