@@ -1,117 +1,40 @@
-import { jstNow } from './utils.js';
-// =============================================================================
-// LINE Accounts — Multi-Account Management
-// =============================================================================
+import { jstNow } from "./utils";
 
-export interface LineAccount {
-  id: string;
-  channel_id: string;
-  name: string;
-  channel_access_token: string;
-  channel_secret: string;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateLineAccountInput {
-  channelId: string;
-  name: string;
-  channelAccessToken: string;
-  channelSecret: string;
-}
-
-export async function createLineAccount(
-  db: D1Database,
-  input: CreateLineAccountInput,
-): Promise<LineAccount> {
-  const id = crypto.randomUUID();
-  const now = jstNow();
-
-  await db
-    .prepare(
-      `INSERT INTO line_accounts (id, channel_id, name, channel_access_token, channel_secret, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-    )
-    .bind(id, input.channelId, input.name, input.channelAccessToken, input.channelSecret, now, now)
-    .run();
-
-  return (await getLineAccountById(db, id))!;
-}
-
-export async function getLineAccountById(
-  db: D1Database,
-  id: string,
-): Promise<LineAccount | null> {
-  return db
-    .prepare(`SELECT * FROM line_accounts WHERE id = ?`)
-    .bind(id)
-    .first<LineAccount>();
-}
-
-export async function getLineAccounts(db: D1Database): Promise<LineAccount[]> {
+export async function getLineAccounts(db: D1Database) {
   const result = await db
-    .prepare(`SELECT * FROM line_accounts ORDER BY created_at DESC`)
-    .all<LineAccount>();
+    .prepare("SELECT id, name, channel_id, is_active, created_at, updated_at FROM line_accounts ORDER BY created_at DESC")
+    .all();
   return result.results;
 }
 
-export async function getLineAccountByChannelId(
-  db: D1Database,
-  channelId: string,
-): Promise<LineAccount | null> {
+export async function getLineAccountById(db: D1Database, id: number) {
+  return db.prepare("SELECT * FROM line_accounts WHERE id = ?").bind(id).first();
+}
+
+export async function getLineAccountByChannelId(db: D1Database, channelId: string) {
+  return db.prepare("SELECT * FROM line_accounts WHERE channel_id = ?").bind(channelId).first();
+}
+
+export async function createLineAccount(db: D1Database, data: { name: string; channelId: string; channelSecret: string; channelAccessToken: string }) {
+  const now = jstNow();
   return db
-    .prepare(`SELECT * FROM line_accounts WHERE channel_id = ?`)
-    .bind(channelId)
-    .first<LineAccount>();
+    .prepare("INSERT INTO line_accounts (name, channel_id, channel_secret, channel_access_token, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?) RETURNING *")
+    .bind(data.name, data.channelId, data.channelSecret, data.channelAccessToken, now, now)
+    .first();
 }
 
-export type UpdateLineAccountInput = Partial<
-  Pick<LineAccount, 'name' | 'channel_access_token' | 'channel_secret' | 'is_active'>
->;
-
-export async function updateLineAccount(
-  db: D1Database,
-  id: string,
-  updates: UpdateLineAccountInput,
-): Promise<LineAccount | null> {
-  const fields: string[] = [];
+export async function updateLineAccount(db: D1Database, id: number, data: Partial<{ name: string; isActive: boolean }>) {
+  const now = jstNow();
+  const sets: string[] = [];
   const values: unknown[] = [];
-
-  if (updates.name !== undefined) {
-    fields.push('name = ?');
-    values.push(updates.name);
-  }
-  if (updates.channel_access_token !== undefined) {
-    fields.push('channel_access_token = ?');
-    values.push(updates.channel_access_token);
-  }
-  if (updates.channel_secret !== undefined) {
-    fields.push('channel_secret = ?');
-    values.push(updates.channel_secret);
-  }
-  if (updates.is_active !== undefined) {
-    fields.push('is_active = ?');
-    values.push(updates.is_active);
-  }
-
-  if (fields.length === 0) return getLineAccountById(db, id);
-
-  fields.push('updated_at = ?');
-  values.push(jstNow());
+  if (data.name !== undefined) { sets.push("name = ?"); values.push(data.name); }
+  if (data.isActive !== undefined) { sets.push("is_active = ?"); values.push(data.isActive ? 1 : 0); }
+  sets.push("updated_at = ?");
+  values.push(now);
   values.push(id);
-
-  await db
-    .prepare(`UPDATE line_accounts SET ${fields.join(', ')} WHERE id = ?`)
-    .bind(...values)
-    .run();
-
-  return getLineAccountById(db, id);
+  await db.prepare(`UPDATE line_accounts SET ${sets.join(", ")} WHERE id = ?`).bind(...values).run();
 }
 
-export async function deleteLineAccount(
-  db: D1Database,
-  id: string,
-): Promise<void> {
-  await db.prepare(`DELETE FROM line_accounts WHERE id = ?`).bind(id).run();
+export async function deleteLineAccount(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM line_accounts WHERE id = ?").bind(id).run();
 }

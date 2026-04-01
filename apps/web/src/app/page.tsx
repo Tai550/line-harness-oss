@@ -1,322 +1,259 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { api } from '@/lib/api'
-import CcPromptButton from '@/components/cc-prompt-button'
+import { useEffect, useMemo, useState } from "react";
+import type { LineAccountAnalytics } from "@line-crm/shared";
+import { api } from "@/lib/api";
+import { exportAnalyticsAsCsv, exportAnalyticsAsJson } from "@/lib/analytics-export";
+import Link from "next/link";
 
-const ccPrompts = [
-  {
-    title: 'ダッシュボードのKPI分析',
-    prompt: `LINE CRM ダッシュボードのデータを分析してください。
-1. 友だち数の推移を確認
-2. アクティブシナリオの効果を評価
-3. 配信の開封率・クリック率を分析
-改善提案を含めてレポートしてください。`,
-  },
-  {
-    title: '新しいシナリオを提案',
-    prompt: `現在の友だちデータとタグ情報を元に、効果的なシナリオ配信を提案してください。
-1. ターゲットセグメントの特定
-2. メッセージ内容の提案
-3. 配信タイミングの最適化
-具体的なステップ配信の構成を含めてください。`,
-  },
-]
-
-interface DashboardStats {
-  friendCount: number | null
-  activeScenarioCount: number | null
-  broadcastCount: number | null
-  templateCount: number | null
-  automationCount: number | null
-  scoringRuleCount: number | null
+interface LineAccount {
+  id: number;
+  name: string;
+  channel_id: string;
+  is_active: boolean;
 }
 
-interface StatCardProps {
-  title: string
-  value: number | null
-  loading: boolean
-  icon: React.ReactNode
-  href: string
-  accentColor?: string
+function getDefaultInsightDate() {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  return date.toISOString().slice(0, 10);
 }
 
-function StatCard({ title, value, loading, icon, href, accentColor = '#06C755' }: StatCardProps) {
-  return (
-    <Link href={href} className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow group">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500 mb-2">{title}</p>
-          {loading ? (
-            <div className="h-8 w-20 bg-gray-100 rounded animate-pulse" />
-          ) : (
-            <p className="text-3xl font-bold text-gray-900">
-              {value !== null ? value.toLocaleString('ja-JP') : '-'}
-            </p>
-          )}
-        </div>
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0"
-          style={{ backgroundColor: accentColor }}
-        >
-          {icon}
-        </div>
-      </div>
-      <p className="text-xs text-gray-400 mt-3 group-hover:text-green-600 transition-colors">
-        詳細を見る →
-      </p>
-    </Link>
-  )
+function formatInsightDateLabel(value: string) {
+  if (!/^\d{8}$/.test(value)) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+}
+
+function firstNumericMetric(source: Record<string, string | number | null | undefined>, candidates: string[]) {
+  for (const key of candidates) {
+    const value = source[key];
+    if (typeof value === "number") {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    friendCount: null,
-    activeScenarioCount: null,
-    broadcastCount: null,
-    templateCount: null,
-    automationCount: null,
-    scoringRuleCount: null,
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [stats, setStats] = useState<Record<string, number>>({});
+  const [accounts, setAccounts] = useState<LineAccount[]>([]);
+  const [analyticsDate, setAnalyticsDate] = useState(getDefaultInsightDate());
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [analytics, setAnalytics] = useState<LineAccountAnalytics | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const [friendCountRes, scenariosRes, broadcastsRes, templatesRes, automationsRes, scoringRes] = await Promise.allSettled([
-          api.friends.count(),
-          api.scenarios.list(),
-          api.broadcasts.list(),
-          api.templates.list(),
-          api.automations.list(),
-          api.scoring.rules(),
-        ])
+      const [friends, scenarios, broadcasts, templates, automations, scoring, lineAccounts] = await Promise.allSettled([
+        api.friends.count(),
+        api.scenarios.list(),
+        api.broadcasts.list(),
+        api.templates.list(),
+        api.automations.list(),
+        api.scoring.list(),
+        api.lineAccounts.list(),
+      ]);
 
-        setStats({
-          friendCount:
-            friendCountRes.status === 'fulfilled' && friendCountRes.value.success
-              ? friendCountRes.value.data.count
-              : null,
-          activeScenarioCount:
-            scenariosRes.status === 'fulfilled' && scenariosRes.value.success
-              ? scenariosRes.value.data.filter((s) => s.isActive).length
-              : null,
-          broadcastCount:
-            broadcastsRes.status === 'fulfilled' && broadcastsRes.value.success
-              ? broadcastsRes.value.data.length
-              : null,
-          templateCount:
-            templatesRes.status === 'fulfilled' && templatesRes.value.success
-              ? templatesRes.value.data.length
-              : null,
-          automationCount:
-            automationsRes.status === 'fulfilled' && automationsRes.value.success
-              ? automationsRes.value.data.filter((a) => a.isActive).length
-              : null,
-          scoringRuleCount:
-            scoringRes.status === 'fulfilled' && scoringRes.value.success
-              ? scoringRes.value.data.length
-              : null,
-        })
-      } catch {
-        setError('データの読み込みに失敗しました')
-      } finally {
-        setLoading(false)
+      const loadedAccounts =
+        lineAccounts.status === "fulfilled" ? (lineAccounts.value as { data: LineAccount[] }).data : [];
+
+      setStats({
+        friends: friends.status === "fulfilled" ? (friends.value as { data: { count: number } }).data.count : 0,
+        scenarios: scenarios.status === "fulfilled" ? (scenarios.value as { data: unknown[] }).data.length : 0,
+        broadcasts: broadcasts.status === "fulfilled" ? (broadcasts.value as { data: unknown[] }).data.length : 0,
+        templates: templates.status === "fulfilled" ? (templates.value as { data: unknown[] }).data.length : 0,
+        automations: automations.status === "fulfilled" ? (automations.value as { data: unknown[] }).data.length : 0,
+        scoring: scoring.status === "fulfilled" ? (scoring.value as { data: unknown[] }).data.length : 0,
+      });
+      setAccounts(loadedAccounts);
+
+      if (loadedAccounts.length > 0) {
+        const activeAccount = loadedAccounts.find((account) => account.is_active) ?? loadedAccounts[0];
+        setSelectedAccountId((current) => current ?? activeAccount.id);
       }
+    };
+
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (selectedAccountId === null) {
+      return;
     }
 
-    load()
-  }, [])
+    const loadAnalytics = async () => {
+      setLoadingAnalytics(true);
+      setAnalyticsError(null);
+
+      try {
+        const response = await api.lineAccounts.analytics(selectedAccountId, analyticsDate);
+        setAnalytics(response.data as LineAccountAnalytics);
+      } catch (error) {
+        setAnalytics(null);
+        setAnalyticsError(error instanceof Error ? error.message : "アナリティクス取得に失敗しました");
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    };
+
+    loadAnalytics();
+  }, [selectedAccountId, analyticsDate]);
+
+  const statCards = [
+    { label: "友だち数", value: stats.friends ?? 0, href: "/friends", color: "bg-green-50 text-green-700" },
+    { label: "シナリオ", value: stats.scenarios ?? 0, href: "/scenarios", color: "bg-blue-50 text-blue-700" },
+    { label: "配信", value: stats.broadcasts ?? 0, href: "/broadcasts", color: "bg-purple-50 text-purple-700" },
+    { label: "テンプレート", value: stats.templates ?? 0, href: "/templates", color: "bg-yellow-50 text-yellow-700" },
+    { label: "オートメーション", value: stats.automations ?? 0, href: "/automations", color: "bg-orange-50 text-orange-700" },
+    { label: "スコアリングルール", value: stats.scoring ?? 0, href: "/scoring", color: "bg-red-50 text-red-700" },
+  ];
+
+  const selectedAccount = useMemo(
+    () => accounts.find((account) => account.id === selectedAccountId) ?? null,
+    [accounts, selectedAccountId]
+  );
+
+  const broadcastCount = analytics ? firstNumericMetric(analytics.delivery, ["broadcast", "apiBroadcast"]) : null;
+  const followerCount = analytics ? firstNumericMetric(analytics.followers, ["followers"]) : null;
+  const reachCount = analytics ? firstNumericMetric(analytics.followers, ["targetedReaches"]) : null;
+  const blockCount = analytics ? firstNumericMetric(analytics.followers, ["blocks"]) : null;
+  const topArea = analytics?.demographic.areas?.[0];
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">ダッシュボード</h1>
-        <p className="text-sm text-gray-500 mt-1">LINE公式アカウント CRM 管理画面</p>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">ダッシュボード</h1>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        {statCards.map((card) => (
+          <Link key={card.label} href={card.href} className={`rounded-xl p-5 ${card.color} hover:opacity-80 transition`}>
+            <p className="text-3xl font-bold">{card.value.toLocaleString()}</p>
+            <p className="text-sm mt-1">{card.label}</p>
+          </Link>
+        ))}
       </div>
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          title="友だち数"
-          value={stats.friendCount}
-          loading={loading}
-          href="/friends"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="アクティブシナリオ数"
-          value={stats.activeScenarioCount}
-          loading={loading}
-          href="/scenarios"
-          accentColor="#3B82F6"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="配信数 (合計)"
-          value={stats.broadcastCount}
-          loading={loading}
-          href="/broadcasts"
-          accentColor="#8B5CF6"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-            </svg>
-          }
-        />
-      </div>
-
-      {/* Round 3 summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          title="テンプレート数"
-          value={stats.templateCount}
-          loading={loading}
-          href="/templates"
-          accentColor="#F59E0B"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="アクティブルール数"
-          value={stats.automationCount}
-          loading={loading}
-          href="/automations"
-          accentColor="#EF4444"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="スコアリングルール数"
-          value={stats.scoringRuleCount}
-          loading={loading}
-          href="/scoring"
-          accentColor="#10B981"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-            </svg>
-          }
-        />
-      </div>
-
-      {/* Quick links */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 mb-4">クイックアクション</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Link
-            href="/friends"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: '#06C755' }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">友だち管理</p>
-              <p className="text-xs text-gray-400">友だちの一覧・タグ管理</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/scenarios"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-blue-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors">シナリオ配信</p>
-              <p className="text-xs text-gray-400">自動配信シナリオの作成・編集</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/broadcasts"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-purple-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-purple-700 transition-colors">一斉配信</p>
-              <p className="text-xs text-gray-400">メッセージの一斉送信・予約</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/chats"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: '#06C755' }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">チャット</p>
-              <p className="text-xs text-gray-400">オペレーターチャット管理</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/health"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-red-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-red-700 transition-colors">BAN検知</p>
-              <p className="text-xs text-gray-400">アカウント健康度ダッシュボード</p>
-            </div>
+      <div className="bg-white rounded-xl shadow-sm p-5 mb-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">公式アカウント アナリティクス</h2>
+            <p className="text-sm text-gray-500">LINE Insight API の前日集計をダッシュボードに要約表示します。</p>
+          </div>
+          <Link href="/accounts" className="text-sm text-blue-600 hover:text-blue-700">
+            詳細を見る
           </Link>
         </div>
+
+        <div className="flex flex-col md:flex-row gap-3 mb-4">
+          <select
+            value={selectedAccountId ?? ""}
+            onChange={(e) => setSelectedAccountId(e.target.value ? Number(e.target.value) : null)}
+            className="border rounded px-3 py-2 text-sm md:min-w-64"
+          >
+            <option value="">アカウントを選択</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={analyticsDate}
+            max={getDefaultInsightDate()}
+            onChange={(e) => setAnalyticsDate(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+        </div>
+
+        {loadingAnalytics ? <p className="text-sm text-gray-500">アナリティクスを取得中です...</p> : null}
+        {analyticsError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{analyticsError}</p> : null}
+        {!loadingAnalytics && !analyticsError && !selectedAccount ? (
+          <p className="text-sm text-gray-500">先に `LINEアカウント` で対象アカウントを登録してください。</p>
+        ) : null}
+
+        {analytics ? (
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <p className="font-medium text-gray-900">{analytics.accountName}</p>
+                <p className="text-sm text-gray-500">集計日: {formatInsightDateLabel(analytics.requestedDate)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <button
+                  onClick={() => exportAnalyticsAsCsv(analytics)}
+                  className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 hover:bg-emerald-100"
+                >
+                  CSV出力
+                </button>
+                <button
+                  onClick={() => exportAnalyticsAsJson(analytics)}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200"
+                >
+                  JSON出力
+                </button>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">送信数: {analytics.delivery.status}</span>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">友だち数: {analytics.followers.status}</span>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">属性: {analytics.demographic.available ? "available" : "unavailable"}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">一斉配信数</p>
+                <p className="text-2xl font-semibold text-gray-900">{(broadcastCount ?? 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">累計友だち追加</p>
+                <p className="text-2xl font-semibold text-gray-900">{(followerCount ?? 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">到達友だち数</p>
+                <p className="text-2xl font-semibold text-gray-900">{(reachCount ?? 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">ブロック数</p>
+                <p className="text-2xl font-semibold text-gray-900">{(blockCount ?? 0).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">主要地域</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {topArea ? `${String(topArea.area)} ${topArea.percentage}%` : "データなし"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">詳細分析</p>
+                <p className="text-sm text-gray-500">
+                  性別・年代・地域の内訳や送信チャネル別件数は `LINEアカウント` 画面で確認できます。
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <CcPromptButton prompts={ccPrompts} />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          { href: "/friends", label: "友だちを管理", icon: "👥" },
+          { href: "/broadcasts", label: "配信を作成", icon: "📢" },
+          { href: "/scenarios", label: "シナリオを作成", icon: "🔄" },
+          { href: "/chats", label: "チャットを確認", icon: "💬" },
+          { href: "/automations", label: "自動化を設定", icon: "⚙️" },
+          { href: "/health", label: "健全性を確認", icon: "🩺" },
+        ].map((action) => (
+          <Link key={action.href} href={action.href} className="bg-white rounded-xl p-4 flex items-center gap-3 shadow-sm hover:shadow transition">
+            <span className="text-2xl">{action.icon}</span>
+            <span className="text-sm font-medium text-gray-700">{action.label}</span>
+          </Link>
+        ))}
+      </div>
     </div>
-  )
+  );
 }

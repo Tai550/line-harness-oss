@@ -1,149 +1,82 @@
-import { jstNow } from './utils.js';
-export interface Friend {
-  id: string;
-  line_user_id: string;
-  display_name: string | null;
-  picture_url: string | null;
-  status_message: string | null;
-  is_following: number;
-  metadata: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GetFriendsOptions {
-  limit?: number;
-  offset?: number;
-  tagId?: string;
-}
+import { jstNow } from "./utils";
 
 export async function getFriends(
   db: D1Database,
-  opts: GetFriendsOptions = {},
-): Promise<Friend[]> {
-  const { limit = 50, offset = 0, tagId } = opts;
-
+  { limit = 20, offset = 0, tagId, accountId }: { limit?: number; offset?: number; tagId?: number; accountId?: number } = {}
+) {
   if (tagId) {
-    const result = await db
-      .prepare(
-        `SELECT f.*
-         FROM friends f
-         INNER JOIN friend_tags ft ON ft.friend_id = f.id
-         WHERE ft.tag_id = ?
-         ORDER BY f.created_at DESC
-         LIMIT ? OFFSET ?`,
-      )
-      .bind(tagId, limit, offset)
-      .all<Friend>();
+    const sql = accountId
+      ? `SELECT f.* FROM friends f JOIN friend_tags ft ON ft.friend_id = f.id WHERE ft.tag_id = ? AND f.account_id = ? ORDER BY f.created_at DESC LIMIT ? OFFSET ?`
+      : `SELECT f.* FROM friends f JOIN friend_tags ft ON ft.friend_id = f.id WHERE ft.tag_id = ? ORDER BY f.created_at DESC LIMIT ? OFFSET ?`;
+    const result = accountId
+      ? await db.prepare(sql).bind(tagId, accountId, limit, offset).all()
+      : await db.prepare(sql).bind(tagId, limit, offset).all();
     return result.results;
   }
-
+  if (accountId) {
+    const result = await db
+      .prepare("SELECT * FROM friends WHERE account_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
+      .bind(accountId, limit, offset)
+      .all();
+    return result.results;
+  }
   const result = await db
-    .prepare(
-      `SELECT * FROM friends
-       ORDER BY created_at DESC
-       LIMIT ? OFFSET ?`,
-    )
+    .prepare("SELECT * FROM friends ORDER BY created_at DESC LIMIT ? OFFSET ?")
     .bind(limit, offset)
-    .all<Friend>();
+    .all();
   return result.results;
 }
 
-export async function getFriendByLineUserId(
-  db: D1Database,
-  lineUserId: string,
-): Promise<Friend | null> {
-  return db
-    .prepare(`SELECT * FROM friends WHERE line_user_id = ?`)
-    .bind(lineUserId)
-    .first<Friend>();
+export async function getFriendByLineUserId(db: D1Database, lineUserId: string) {
+  return db.prepare("SELECT * FROM friends WHERE line_user_id = ?").bind(lineUserId).first();
 }
 
-export async function getFriendById(
-  db: D1Database,
-  id: string,
-): Promise<Friend | null> {
-  return db
-    .prepare(`SELECT * FROM friends WHERE id = ?`)
-    .bind(id)
-    .first<Friend>();
-}
-
-export interface UpsertFriendInput {
-  lineUserId: string;
-  displayName?: string | null;
-  pictureUrl?: string | null;
-  statusMessage?: string | null;
+export async function getFriendById(db: D1Database, id: number) {
+  return db.prepare("SELECT * FROM friends WHERE id = ?").bind(id).first();
 }
 
 export async function upsertFriend(
   db: D1Database,
-  input: UpsertFriendInput,
-): Promise<Friend> {
-  const now = jstNow();
-  const existing = await getFriendByLineUserId(db, input.lineUserId);
-
-  if (existing) {
-    await db
-      .prepare(
-        `UPDATE friends
-         SET display_name = ?,
-             picture_url = ?,
-             status_message = ?,
-             is_following = 1,
-             updated_at = ?
-         WHERE line_user_id = ?`,
-      )
-      .bind(
-        'displayName' in input ? (input.displayName ?? null) : existing.display_name,
-        'pictureUrl' in input ? (input.pictureUrl ?? null) : existing.picture_url,
-        'statusMessage' in input ? (input.statusMessage ?? null) : existing.status_message,
-        now,
-        input.lineUserId,
-      )
-      .run();
-
-    return (await getFriendByLineUserId(db, input.lineUserId))!;
+  data: {
+    lineUserId: string;
+    displayName: string;
+    pictureUrl?: string;
+    statusMessage?: string;
+    refCode?: string;
+    accountId?: number;
   }
-
-  const id = crypto.randomUUID();
+) {
+  const now = jstNow();
   await db
     .prepare(
-      `INSERT INTO friends (id, line_user_id, display_name, picture_url, status_message, is_following, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+      `INSERT INTO friends (line_user_id, display_name, picture_url, status_message, is_following, ref_code, account_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
+       ON CONFLICT(line_user_id) DO UPDATE SET
+         display_name = excluded.display_name,
+         picture_url = excluded.picture_url,
+         status_message = excluded.status_message,
+         is_following = 1,
+         account_id = COALESCE(excluded.account_id, friends.account_id),
+         updated_at = excluded.updated_at`
     )
-    .bind(
-      id,
-      input.lineUserId,
-      input.displayName ?? null,
-      input.pictureUrl ?? null,
-      input.statusMessage ?? null,
-      now,
-      now,
-    )
+    .bind(data.lineUserId, data.displayName, data.pictureUrl ?? null, data.statusMessage ?? null, data.refCode ?? null, data.accountId ?? null, now, now)
     .run();
-
-  return (await getFriendById(db, id))!;
+  return getFriendByLineUserId(db, data.lineUserId);
 }
 
-export async function updateFriendFollowStatus(
-  db: D1Database,
-  lineUserId: string,
-  isFollowing: boolean,
-): Promise<void> {
+export async function updateFriendFollowStatus(db: D1Database, lineUserId: string, isFollowing: boolean) {
+  const now = jstNow();
   await db
-    .prepare(
-      `UPDATE friends
-       SET is_following = ?, updated_at = ?
-       WHERE line_user_id = ?`,
-    )
-    .bind(isFollowing ? 1 : 0, jstNow(), lineUserId)
+    .prepare("UPDATE friends SET is_following = ?, updated_at = ? WHERE line_user_id = ?")
+    .bind(isFollowing ? 1 : 0, now, lineUserId)
     .run();
 }
 
-export async function getFriendCount(db: D1Database): Promise<number> {
-  const row = await db
-    .prepare(`SELECT COUNT(*) as count FROM friends`)
-    .first<{ count: number }>();
-  return row?.count ?? 0;
+export async function getFriendCount(db: D1Database, accountId?: number): Promise<number> {
+  if (accountId) {
+    const result = await db.prepare("SELECT COUNT(*) as count FROM friends WHERE account_id = ?").bind(accountId).first<{ count: number }>();
+    return result?.count ?? 0;
+  }
+  const result = await db.prepare("SELECT COUNT(*) as count FROM friends").first<{ count: number }>();
+  return result?.count ?? 0;
 }

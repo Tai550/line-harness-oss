@@ -1,176 +1,140 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import type { Tag } from '@line-crm/shared'
-import { api } from '@/lib/api'
-import type { FriendWithTags } from '@/lib/api'
-import Header from '@/components/layout/header'
-import FriendTable from '@/components/friends/friend-table'
-import CcPromptButton from '@/components/cc-prompt-button'
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
-const ccPrompts = [
-  {
-    title: '友だちのセグメント分析',
-    prompt: `友だち一覧のデータを分析してください。
-1. タグ別の友だち数を集計
-2. アクティブ率の高いセグメントを特定
-3. エンゲージメントが低い層への施策を提案
-レポート形式で出力してください。`,
-  },
-  {
-    title: 'タグ一括管理',
-    prompt: `友だちのタグを一括管理してください。
-1. 未タグの友だちを特定
-2. 行動履歴に基づいたタグ付け提案
-3. 不要タグの整理
-作業手順を示してください。`,
-  },
-]
+interface Friend {
+  id: number;
+  display_name: string;
+  picture_url: string | null;
+  is_following: boolean;
+  score: number;
+  account_id: number | null;
+  created_at: string;
+  tags?: Array<{ id: number; name: string; color: string }>;
+}
 
-const PAGE_SIZE = 20
+interface Tag {
+  id: number;
+  name: string;
+  color: string;
+}
+
+interface LineAccount {
+  id: number;
+  name: string;
+}
 
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<FriendWithTags[]>([])
-  const [allTags, setAllTags] = useState<Tag[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [hasNextPage, setHasNextPage] = useState(false)
-  const [selectedTagId, setSelectedTagId] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [total, setTotal] = useState(0);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [accounts, setAccounts] = useState<LineAccount[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [tagFilter, setTagFilter] = useState("");
+  const [accountFilter, setAccountFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const limit = 20;
 
-  const loadTags = useCallback(async () => {
-    try {
-      const res = await api.tags.list()
-      if (res.success) setAllTags(res.data)
-    } catch {
-      // Non-blocking — tags used for filter
-    }
-  }, [])
-
-  const loadFriends = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const params: Record<string, string> = {
-        offset: String((page - 1) * PAGE_SIZE),
-        limit: String(PAGE_SIZE),
-      }
-      if (selectedTagId) params.tagId = selectedTagId
-
-      const res = await api.friends.list(params)
-      if (res.success) {
-        setFriends(res.data.items)
-        setTotal(res.data.total)
-        setHasNextPage(res.data.hasNextPage)
-      } else {
-        setError(res.error)
-      }
-    } catch {
-      setError('友だちの読み込みに失敗しました。もう一度お試しください。')
-    } finally {
-      setLoading(false)
-    }
-  }, [page, selectedTagId])
+  const loadFriends = async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (tagFilter) params.set("tagId", tagFilter);
+    if (accountFilter) params.set("accountId", accountFilter);
+    const res = await api.friends.list(params.toString());
+    setFriends(res.data as Friend[]);
+    setTotal(res.total);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    loadTags()
-  }, [loadTags])
+    api.tags.list().then((r) => setTags(r.data as Tag[]));
+    api.lineAccounts.list().then((r) => setAccounts(r.data as LineAccount[]));
+  }, []);
 
   useEffect(() => {
-    setPage(1)
-  }, [selectedTagId])
-
-  useEffect(() => {
-    loadFriends()
-  }, [loadFriends])
-
-  const handleTagFilter = (tagId: string) => {
-    setSelectedTagId(tagId)
-  }
+    loadFriends();
+  }, [offset, tagFilter, accountFilter]);
 
   return (
     <div>
-      <Header title="友だち管理" />
-
-      {/* Filters */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600 font-medium whitespace-nowrap">タグで絞り込み:</label>
-          <select
-            className="text-sm border border-gray-300 rounded-lg px-3 py-2 min-h-[44px] bg-white focus:outline-none focus:ring-2 focus:ring-green-500 flex-1 sm:flex-none"
-            value={selectedTagId}
-            onChange={(e) => handleTagFilter(e.target.value)}
-          >
-            <option value="">すべて</option>
-            {allTags.map((tag) => (
-              <option key={tag.id} value={tag.id}>{tag.name}</option>
-            ))}
-          </select>
-        </div>
-        <span className="text-sm text-gray-500">
-          {loading ? '読み込み中...' : `${total.toLocaleString('ja-JP')} 件`}
-        </span>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">友だち管理</h1>
+        <span className="text-sm text-gray-500">合計 {total.toLocaleString()} 人</span>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Loading skeleton */}
-      {loading ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="px-4 py-4 border-b border-gray-100 flex items-center gap-4 animate-pulse">
-              <div className="w-9 h-9 rounded-full bg-gray-200" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 bg-gray-200 rounded w-32" />
-                <div className="h-2 bg-gray-100 rounded w-20" />
-              </div>
-              <div className="h-5 bg-gray-100 rounded-full w-16" />
-              <div className="h-5 bg-gray-100 rounded-full w-12" />
-              <div className="h-3 bg-gray-100 rounded w-20" />
-            </div>
+      <div className="mb-4 flex gap-2">
+        <select
+          value={accountFilter}
+          onChange={(e) => { setAccountFilter(e.target.value); setOffset(0); }}
+          className="border rounded px-3 py-1.5 text-sm"
+        >
+          <option value="">すべてのアカウント</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
           ))}
-        </div>
+        </select>
+        <select
+          value={tagFilter}
+          onChange={(e) => { setTagFilter(e.target.value); setOffset(0); }}
+          className="border rounded px-3 py-1.5 text-sm"
+        >
+          <option value="">すべてのタグ</option>
+          {tags.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <p className="text-gray-400">読み込み中...</p>
       ) : (
-        <FriendTable
-          friends={friends}
-          allTags={allTags}
-          onRefresh={loadFriends}
-        />
-      )}
-
-      {/* Pagination */}
-      {!loading && total > 0 && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4">
-          <p className="text-sm text-gray-500">
-            {((page - 1) * PAGE_SIZE) + 1}〜{Math.min(page * PAGE_SIZE, total)} 件 / 全{total.toLocaleString('ja-JP')}件
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              前へ
-            </button>
-            <span className="text-sm text-gray-600 px-1">{page} ページ</span>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={!hasNextPage}
-              className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              次へ
-            </button>
-          </div>
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs">
+              <tr>
+                <th className="text-left px-4 py-3">名前</th>
+                <th className="text-left px-4 py-3">ステータス</th>
+                <th className="text-left px-4 py-3">スコア</th>
+                <th className="text-left px-4 py-3">登録日</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {friends.map((friend) => (
+                <tr key={friend.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {friend.picture_url ? (
+                        <img src={friend.picture_url} alt="" className="w-8 h-8 rounded-full" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs">
+                          {friend.display_name[0]}
+                        </div>
+                      )}
+                      <span className="font-medium">{friend.display_name}</span>
+                    </div>
+                    <a href={`/friends/detail?id=${friend.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:text-blue-700">
+                      詳細を見る
+                    </a>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${friend.is_following ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      {friend.is_following ? "フォロー中" : "ブロック"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{friend.score}</td>
+                  <td className="px-4 py-3 text-gray-400">{new Date(friend.created_at).toLocaleDateString("ja-JP")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <CcPromptButton prompts={ccPrompts} />
+      <div className="flex gap-2 mt-4">
+        <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="px-3 py-1.5 border rounded text-sm disabled:opacity-40">前へ</button>
+        <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="px-3 py-1.5 border rounded text-sm disabled:opacity-40">次へ</button>
+      </div>
     </div>
-  )
+  );
 }

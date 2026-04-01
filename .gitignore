@@ -5,12 +5,9 @@ dist/
 .vercel/
 .env
 .env.local
-*.log
-.DS_Store
 .env.production
 .env.staging
+*.log
+.DS_Store
 apps/web/out/
-dist/
-apps/web/out/
-docs/superpowers/
 apps/liff/dist/

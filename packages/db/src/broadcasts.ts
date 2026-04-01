@@ -1,175 +1,82 @@
-import { jstNow } from './utils.js';
-export type BroadcastTargetType = 'all' | 'tag';
-export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent';
-export type BroadcastMessageType = 'text' | 'image' | 'flex';
+import { jstNow } from "./utils";
 
-export interface Broadcast {
-  id: string;
-  title: string;
-  message_type: BroadcastMessageType;
-  message_content: string;
-  target_type: BroadcastTargetType;
-  target_tag_id: string | null;
-  status: BroadcastStatus;
-  scheduled_at: string | null;
-  sent_at: string | null;
-  total_count: number;
-  success_count: number;
-  created_at: string;
-}
-
-export async function getBroadcasts(db: D1Database): Promise<Broadcast[]> {
+export async function getBroadcasts(db: D1Database, { limit = 20, offset = 0 } = {}) {
   const result = await db
-    .prepare(`SELECT * FROM broadcasts ORDER BY created_at DESC`)
-    .all<Broadcast>();
+    .prepare("SELECT * FROM broadcasts ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .bind(limit, offset)
+    .all();
   return result.results;
 }
 
-export async function getBroadcastById(
-  db: D1Database,
-  id: string,
-): Promise<Broadcast | null> {
-  return db
-    .prepare(`SELECT * FROM broadcasts WHERE id = ?`)
-    .bind(id)
-    .first<Broadcast>();
+export async function getBroadcastById(db: D1Database, id: number) {
+  return db.prepare("SELECT * FROM broadcasts WHERE id = ?").bind(id).first();
 }
 
-export interface CreateBroadcastInput {
+export async function createBroadcast(db: D1Database, data: {
   title: string;
-  messageType: BroadcastMessageType;
+  messageType: string;
   messageContent: string;
-  targetType: BroadcastTargetType;
-  targetTagId?: string | null;
-  scheduledAt?: string | null;
-}
-
-export async function createBroadcast(
-  db: D1Database,
-  input: CreateBroadcastInput,
-): Promise<Broadcast> {
-  const id = crypto.randomUUID();
+  targetType: string;
+  targetTagId?: number;
+  targetConditions?: string;
+  scheduledAt?: string;
+}) {
   const now = jstNow();
-
-  const initialStatus: BroadcastStatus = input.scheduledAt ? 'scheduled' : 'draft';
-
-  await db
-    .prepare(
-      `INSERT INTO broadcasts
-         (id, title, message_type, message_content, target_type, target_tag_id, status, scheduled_at, sent_at, total_count, success_count, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 0, ?)`,
-    )
-    .bind(
-      id,
-      input.title,
-      input.messageType,
-      input.messageContent,
-      input.targetType,
-      input.targetTagId ?? null,
-      initialStatus,
-      input.scheduledAt ?? null,
-      now,
-    )
-    .run();
-
-  return (await getBroadcastById(db, id))!;
+  const status = data.scheduledAt ? "scheduled" : "draft";
+  return db
+    .prepare("INSERT INTO broadcasts (title, message_type, message_content, target_type, target_tag_id, target_conditions, status, scheduled_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *")
+    .bind(data.title, data.messageType, data.messageContent, data.targetType, data.targetTagId ?? null, data.targetConditions ?? null, status, data.scheduledAt ?? null, now, now)
+    .first();
 }
 
-export type UpdateBroadcastInput = Partial<
-  Pick<
-    Broadcast,
-    | 'title'
-    | 'message_type'
-    | 'message_content'
-    | 'target_type'
-    | 'target_tag_id'
-    | 'status'
-    | 'scheduled_at'
-  >
->;
-
-export async function updateBroadcast(
-  db: D1Database,
-  id: string,
-  updates: UpdateBroadcastInput,
-): Promise<Broadcast | null> {
-  const fields: string[] = [];
+export async function updateBroadcast(db: D1Database, id: number, data: Partial<{
+  title: string;
+  messageType: string;
+  messageContent: string;
+  targetType: string;
+  scheduledAt: string;
+  status: string;
+}>) {
+  const now = jstNow();
+  const sets: string[] = [];
   const values: unknown[] = [];
+  if (data.title !== undefined) { sets.push("title = ?"); values.push(data.title); }
+  if (data.messageType !== undefined) { sets.push("message_type = ?"); values.push(data.messageType); }
+  if (data.messageContent !== undefined) { sets.push("message_content = ?"); values.push(data.messageContent); }
+  if (data.targetType !== undefined) { sets.push("target_type = ?"); values.push(data.targetType); }
+  if (data.scheduledAt !== undefined) { sets.push("scheduled_at = ?"); values.push(data.scheduledAt); }
+  if (data.status !== undefined) { sets.push("status = ?"); values.push(data.status); }
+  sets.push("updated_at = ?");
+  values.push(now);
+  values.push(id);
+  if (sets.length === 1) return;
+  await db.prepare(`UPDATE broadcasts SET ${sets.join(", ")} WHERE id = ?`).bind(...values).run();
+}
 
-  if (updates.title !== undefined) {
-    fields.push('title = ?');
-    values.push(updates.title);
-  }
-  if (updates.message_type !== undefined) {
-    fields.push('message_type = ?');
-    values.push(updates.message_type);
-  }
-  if (updates.message_content !== undefined) {
-    fields.push('message_content = ?');
-    values.push(updates.message_content);
-  }
-  if (updates.target_type !== undefined) {
-    fields.push('target_type = ?');
-    values.push(updates.target_type);
-  }
-  if (updates.target_tag_id !== undefined) {
-    fields.push('target_tag_id = ?');
-    values.push(updates.target_tag_id);
-  }
-  if (updates.status !== undefined) {
-    fields.push('status = ?');
-    values.push(updates.status);
-  }
-  if (updates.scheduled_at !== undefined) {
-    fields.push('scheduled_at = ?');
-    values.push(updates.scheduled_at);
-  }
+export async function deleteBroadcast(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM broadcasts WHERE id = ?").bind(id).run();
+}
 
-  if (fields.length > 0) {
-    values.push(id);
+export async function updateBroadcastStatus(db: D1Database, id: number, status: string, stats?: { totalCount?: number; successCount?: number }) {
+  const now = jstNow();
+  if (stats) {
     await db
-      .prepare(`UPDATE broadcasts SET ${fields.join(', ')} WHERE id = ?`)
-      .bind(...values)
+      .prepare("UPDATE broadcasts SET status = ?, total_count = ?, success_count = ?, sent_at = ?, updated_at = ? WHERE id = ?")
+      .bind(status, stats.totalCount ?? 0, stats.successCount ?? 0, now, now, id)
+      .run();
+  } else {
+    await db
+      .prepare("UPDATE broadcasts SET status = ?, updated_at = ? WHERE id = ?")
+      .bind(status, now, id)
       .run();
   }
-
-  return getBroadcastById(db, id);
 }
 
-export async function deleteBroadcast(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM broadcasts WHERE id = ?`).bind(id).run();
-}
-
-export interface BroadcastStatusCounts {
-  totalCount?: number;
-  successCount?: number;
-}
-
-export async function updateBroadcastStatus(
-  db: D1Database,
-  id: string,
-  status: BroadcastStatus,
-  counts?: BroadcastStatusCounts,
-): Promise<void> {
-  const fields: string[] = ['status = ?'];
-  const values: unknown[] = [status];
-
-  if (status === 'sent') {
-    fields.push('sent_at = ?');
-    values.push(jstNow());
-  }
-  if (counts?.totalCount !== undefined) {
-    fields.push('total_count = ?');
-    values.push(counts.totalCount);
-  }
-  if (counts?.successCount !== undefined) {
-    fields.push('success_count = ?');
-    values.push(counts.successCount);
-  }
-
-  values.push(id);
-  await db
-    .prepare(`UPDATE broadcasts SET ${fields.join(', ')} WHERE id = ?`)
-    .bind(...values)
-    .run();
+export async function getScheduledBroadcastsDue(db: D1Database) {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare("SELECT * FROM broadcasts WHERE status = 'scheduled' AND scheduled_at <= ?")
+    .bind(now)
+    .all();
+  return result.results;
 }

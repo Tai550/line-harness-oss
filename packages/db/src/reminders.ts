@@ -1,173 +1,117 @@
-import { jstNow } from './utils.js';
-// リマインダ配信クエリヘルパー
+import { jstNow } from "./utils";
 
-export interface ReminderRow {
-  id: string;
-  name: string;
-  description: string | null;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ReminderStepRow {
-  id: string;
-  reminder_id: string;
-  offset_minutes: number;
-  message_type: string;
-  message_content: string;
-  created_at: string;
-}
-
-export interface FriendReminderRow {
-  id: string;
-  friend_id: string;
-  reminder_id: string;
-  target_date: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- リマインダCRUD ---
-
-export async function getReminders(db: D1Database): Promise<ReminderRow[]> {
-  const result = await db.prepare(`SELECT * FROM reminders ORDER BY created_at DESC`).all<ReminderRow>();
+export async function getReminders(db: D1Database) {
+  const result = await db.prepare("SELECT * FROM reminders ORDER BY created_at DESC").all();
   return result.results;
 }
 
-export async function getReminderById(db: D1Database, id: string): Promise<ReminderRow | null> {
-  return db.prepare(`SELECT * FROM reminders WHERE id = ?`).bind(id).first<ReminderRow>();
+export async function getReminderById(db: D1Database, id: number) {
+  return db.prepare("SELECT * FROM reminders WHERE id = ?").bind(id).first();
 }
 
-export async function createReminder(
-  db: D1Database,
-  input: { name: string; description?: string },
-): Promise<ReminderRow> {
-  const id = crypto.randomUUID();
+export async function createReminder(db: D1Database, data: { name: string; description?: string }) {
   const now = jstNow();
-  await db.prepare(`INSERT INTO reminders (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`)
-    .bind(id, input.name, input.description ?? null, now, now).run();
-  return (await getReminderById(db, id))!;
+  return db
+    .prepare("INSERT INTO reminders (name, description, is_active, created_at, updated_at) VALUES (?, ?, 1, ?, ?) RETURNING *")
+    .bind(data.name, data.description ?? null, now, now)
+    .first();
 }
 
-export async function updateReminder(
-  db: D1Database,
-  id: string,
-  updates: Partial<{ name: string; description: string; isActive: boolean }>,
-): Promise<void> {
+export async function updateReminder(db: D1Database, id: number, data: Partial<{ name: string; description: string; isActive: boolean }>) {
+  const now = jstNow();
   const sets: string[] = [];
   const values: unknown[] = [];
-  if (updates.name !== undefined) { sets.push('name = ?'); values.push(updates.name); }
-  if (updates.description !== undefined) { sets.push('description = ?'); values.push(updates.description); }
-  if (updates.isActive !== undefined) { sets.push('is_active = ?'); values.push(updates.isActive ? 1 : 0); }
-  if (sets.length === 0) return;
-  sets.push('updated_at = ?');
-  values.push(jstNow());
+  if (data.name !== undefined) { sets.push("name = ?"); values.push(data.name); }
+  if (data.description !== undefined) { sets.push("description = ?"); values.push(data.description); }
+  if (data.isActive !== undefined) { sets.push("is_active = ?"); values.push(data.isActive ? 1 : 0); }
+  sets.push("updated_at = ?");
+  values.push(now);
   values.push(id);
-  await db.prepare(`UPDATE reminders SET ${sets.join(', ')} WHERE id = ?`).bind(...values).run();
+  await db.prepare(`UPDATE reminders SET ${sets.join(", ")} WHERE id = ?`).bind(...values).run();
 }
 
-export async function deleteReminder(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM reminders WHERE id = ?`).bind(id).run();
+export async function deleteReminder(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM reminders WHERE id = ?").bind(id).run();
 }
 
-// --- リマインダステップ ---
-
-export async function getReminderSteps(db: D1Database, reminderId: string): Promise<ReminderStepRow[]> {
-  const result = await db.prepare(`SELECT * FROM reminder_steps WHERE reminder_id = ? ORDER BY offset_minutes ASC`)
-    .bind(reminderId).all<ReminderStepRow>();
+export async function getReminderSteps(db: D1Database, reminderId: number) {
+  const result = await db.prepare("SELECT * FROM reminder_steps WHERE reminder_id = ? ORDER BY step_order ASC").bind(reminderId).all();
   return result.results;
 }
 
-export async function createReminderStep(
-  db: D1Database,
-  input: { reminderId: string; offsetMinutes: number; messageType: string; messageContent: string },
-): Promise<ReminderStepRow> {
-  const id = crypto.randomUUID();
+export async function createReminderStep(db: D1Database, data: {
+  reminderId: number; stepOrder: number; offsetMinutes: number; messageType: string; messageContent: string;
+}) {
   const now = jstNow();
-  await db.prepare(`INSERT INTO reminder_steps (id, reminder_id, offset_minutes, message_type, message_content, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-    .bind(id, input.reminderId, input.offsetMinutes, input.messageType, input.messageContent, now).run();
-  return (await db.prepare(`SELECT * FROM reminder_steps WHERE id = ?`).bind(id).first<ReminderStepRow>())!;
+  return db
+    .prepare("INSERT INTO reminder_steps (reminder_id, step_order, offset_minutes, message_type, message_content, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING *")
+    .bind(data.reminderId, data.stepOrder, data.offsetMinutes, data.messageType, data.messageContent, now)
+    .first();
 }
 
-export async function deleteReminderStep(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM reminder_steps WHERE id = ?`).bind(id).run();
+export async function updateReminderStep(db: D1Database, id: number, data: Partial<{ offsetMinutes: number; messageContent: string }>) {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  if (data.offsetMinutes !== undefined) { sets.push("offset_minutes = ?"); values.push(data.offsetMinutes); }
+  if (data.messageContent !== undefined) { sets.push("message_content = ?"); values.push(data.messageContent); }
+  if (sets.length === 0) return;
+  values.push(id);
+  await db.prepare(`UPDATE reminder_steps SET ${sets.join(", ")} WHERE id = ?`).bind(...values).run();
 }
 
-// --- 友だちリマインダ ---
+export async function deleteReminderStep(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM reminder_steps WHERE id = ?").bind(id).run();
+}
 
-export async function enrollFriendInReminder(
-  db: D1Database,
-  input: { friendId: string; reminderId: string; targetDate: string },
-): Promise<FriendReminderRow> {
-  const id = crypto.randomUUID();
+export async function enrollFriendInReminder(db: D1Database, friendId: number, reminderId: number, targetDate: string) {
   const now = jstNow();
-  await db.prepare(`INSERT INTO friend_reminders (id, friend_id, reminder_id, target_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
-    .bind(id, input.friendId, input.reminderId, input.targetDate, now, now).run();
-  return (await db.prepare(`SELECT * FROM friend_reminders WHERE id = ?`).bind(id).first<FriendReminderRow>())!;
-}
+  const result = await db
+    .prepare("INSERT INTO friend_reminders (friend_id, reminder_id, target_date, status, started_at) VALUES (?, ?, ?, 'active', ?) RETURNING *")
+    .bind(friendId, reminderId, targetDate, now)
+    .first<{ id: number }>();
 
-export async function getFriendReminders(db: D1Database, friendId: string): Promise<FriendReminderRow[]> {
-  const result = await db.prepare(`SELECT * FROM friend_reminders WHERE friend_id = ? ORDER BY target_date ASC`)
-    .bind(friendId).all<FriendReminderRow>();
-  return result.results;
-}
+  if (!result) return;
 
-export async function cancelFriendReminder(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`UPDATE friend_reminders SET status = 'cancelled', updated_at = ? WHERE id = ?`)
-    .bind(jstNow(), id).run();
-}
-
-/** リマインダ配信処理用: 配信が必要な友だちリマインダを取得 */
-export async function getDueReminderDeliveries(db: D1Database, now: string): Promise<Array<FriendReminderRow & { steps: ReminderStepRow[] }>> {
-  // activeなリマインダ登録を取得
-  const activeReminders = await db
-    .prepare(`SELECT fr.* FROM friend_reminders fr
-              INNER JOIN reminders r ON r.id = fr.reminder_id
-              WHERE fr.status = 'active' AND r.is_active = 1`)
-    .all<FriendReminderRow>();
-
-  const results: Array<FriendReminderRow & { steps: ReminderStepRow[] }> = [];
-  for (const fr of activeReminders.results) {
-    const steps = await getReminderSteps(db, fr.reminder_id);
-    // 配信済みステップを取得
-    const delivered = await db
-      .prepare(`SELECT reminder_step_id FROM friend_reminder_deliveries WHERE friend_reminder_id = ?`)
-      .bind(fr.id)
-      .all<{ reminder_step_id: string }>();
-    const deliveredIds = new Set(delivered.results.map((d) => d.reminder_step_id));
-
-    // 未配信で配信時刻が到来しているステップをフィルタ
-    const dueSteps = steps.filter((step) => {
-      if (deliveredIds.has(step.id)) return false;
-      const targetTime = new Date(fr.target_date).getTime() + step.offset_minutes * 60_000;
-      return targetTime <= new Date(now).getTime();
-    });
-
-    if (dueSteps.length > 0) {
-      results.push({ ...fr, steps: dueSteps });
-    }
+  const steps = await getReminderSteps(db, reminderId);
+  for (const step of steps as Array<{ id: number; offset_minutes: number }>) {
+    const scheduledAt = new Date(new Date(targetDate).getTime() + step.offset_minutes * 60 * 1000).toISOString();
+    await db
+      .prepare("INSERT INTO friend_reminder_steps (friend_reminder_id, reminder_step_id, scheduled_at, status) VALUES (?, ?, ?, 'pending')")
+      .bind(result.id, step.id, scheduledAt)
+      .run();
   }
-  return results;
+  return result;
 }
 
-/** 配信済みを記録 */
-export async function markReminderStepDelivered(db: D1Database, friendReminderId: string, reminderStepId: string): Promise<void> {
-  const id = crypto.randomUUID();
-  await db.prepare(`INSERT OR IGNORE INTO friend_reminder_deliveries (id, friend_reminder_id, reminder_step_id) VALUES (?, ?, ?)`)
-    .bind(id, friendReminderId, reminderStepId).run();
+export async function getDueReminderDeliveries(db: D1Database) {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      `SELECT frs.*, rs.message_type, rs.message_content, fr.friend_id, f.line_user_id, f.is_following
+       FROM friend_reminder_steps frs
+       JOIN friend_reminders fr ON fr.id = frs.friend_reminder_id
+       JOIN reminder_steps rs ON rs.id = frs.reminder_step_id
+       JOIN friends f ON f.id = fr.friend_id
+       WHERE frs.status = 'pending' AND frs.scheduled_at <= ? AND fr.status = 'active'
+       LIMIT 50`
+    )
+    .bind(now)
+    .all();
+  return result.results;
 }
 
-/** 全ステップ配信済みならcompletedにする */
-export async function completeReminderIfDone(db: D1Database, friendReminderId: string, reminderId: string): Promise<void> {
-  const totalSteps = await db.prepare(`SELECT COUNT(*) as count FROM reminder_steps WHERE reminder_id = ?`)
-    .bind(reminderId).first<{ count: number }>();
-  const deliveredSteps = await db.prepare(`SELECT COUNT(*) as count FROM friend_reminder_deliveries WHERE friend_reminder_id = ?`)
-    .bind(friendReminderId).first<{ count: number }>();
+export async function markReminderStepDelivered(db: D1Database, stepId: number) {
+  const now = jstNow();
+  await db.prepare("UPDATE friend_reminder_steps SET status = 'delivered', delivered_at = ? WHERE id = ?").bind(now, stepId).run();
+}
 
-  if (totalSteps && deliveredSteps && deliveredSteps.count >= totalSteps.count) {
-    await db.prepare(`UPDATE friend_reminders SET status = 'completed', updated_at = ? WHERE id = ?`)
-      .bind(jstNow(), friendReminderId).run();
+export async function completeReminderIfDone(db: D1Database, friendReminderId: number) {
+  const pending = await db
+    .prepare("SELECT COUNT(*) as count FROM friend_reminder_steps WHERE friend_reminder_id = ? AND status = 'pending'")
+    .bind(friendReminderId)
+    .first<{ count: number }>();
+  if (pending && pending.count === 0) {
+    const now = jstNow();
+    await db.prepare("UPDATE friend_reminders SET status = 'completed', completed_at = ? WHERE id = ?").bind(now, friendReminderId).run();
   }
 }

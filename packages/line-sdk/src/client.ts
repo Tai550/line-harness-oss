@@ -1,179 +1,129 @@
 import type {
-  BroadcastRequest,
-  FlexContainer,
-  Message,
-  MulticastRequest,
-  PushMessageRequest,
-  ReplyMessageRequest,
-  RichMenuObject,
+  InsightCountResponse,
+  InsightDemographicResponse,
+  OutboundMessage,
+  RichMenuConfig,
   UserProfile,
-} from './types.js';
+} from "./types";
 
-const LINE_API_BASE = 'https://api.line.me/v2/bot';
+const LINE_API_BASE = "https://api.line.me/v2/bot";
 
 export class LineClient {
-  constructor(private readonly channelAccessToken: string) {}
+  private channelAccessToken: string;
 
-  // ─── Core request helper ──────────────────────────────────────────────────
+  constructor(channelAccessToken: string) {
+    this.channelAccessToken = channelAccessToken;
+  }
 
-  private async request<T = unknown>(
-    path: string,
-    body: object,
-    method: 'GET' | 'POST' | 'DELETE' = 'POST',
-  ): Promise<T> {
-    const url = `${LINE_API_BASE}${path}`;
-
+  private async request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
     const options: RequestInit = {
       method,
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${this.channelAccessToken}`,
+        "Content-Type": "application/json",
       },
     };
-
-    if (method !== 'GET' && method !== 'DELETE') {
+    if (body) {
       options.body = JSON.stringify(body);
     }
-
-    const res = await fetch(url, options);
-
+    const res = await fetch(`${LINE_API_BASE}${path}`, options);
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(
-        `LINE API error: ${res.status} ${res.statusText} — ${text}`,
-      );
+      const text = await res.text();
+      throw new Error(`LINE API error ${res.status}: ${text}`);
     }
-
-    // Some endpoints (e.g. push, reply) return an empty body with 200.
-    const contentType = res.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
+    if (res.status === 200) {
       return res.json() as Promise<T>;
     }
-
-    return undefined as unknown as T;
+    return {} as T;
   }
-
-  // ─── Profile ──────────────────────────────────────────────────────────────
 
   async getProfile(userId: string): Promise<UserProfile> {
-    return this.request<UserProfile>(
-      `/profile/${encodeURIComponent(userId)}`,
-      {},
-      'GET',
-    );
+    return this.request<UserProfile>(`/profile/${userId}`);
   }
 
-  // ─── Messaging ───────────────────────────────────────────────────────────
-
-  async pushMessage(to: string, messages: Message[]): Promise<void> {
-    const body: PushMessageRequest = { to, messages };
-    await this.request('/message/push', body);
+  async pushMessage(to: string, messages: OutboundMessage[]): Promise<void> {
+    await this.request("/message/push", "POST", { to, messages });
   }
 
-  async multicast(to: string[], messages: Message[]): Promise<void> {
-    const body: MulticastRequest = { to, messages };
-    await this.request('/message/multicast', body);
+  async multicast(to: string[], messages: OutboundMessage[]): Promise<void> {
+    await this.request("/message/multicast", "POST", { to, messages });
   }
 
-  async broadcast(messages: Message[]): Promise<void> {
-    const body: BroadcastRequest = { messages };
-    await this.request('/message/broadcast', body);
+  async broadcast(messages: OutboundMessage[]): Promise<void> {
+    await this.request("/message/broadcast", "POST", { messages });
   }
 
-  async replyMessage(
-    replyToken: string,
-    messages: Message[],
-  ): Promise<void> {
-    const body: ReplyMessageRequest = { replyToken, messages };
-    await this.request('/message/reply', body);
+  async replyMessage(replyToken: string, messages: OutboundMessage[]): Promise<void> {
+    await this.request("/message/reply", "POST", { replyToken, messages });
   }
 
-  // ─── Rich Menu ────────────────────────────────────────────────────────────
-
-  async getRichMenuList(): Promise<{ richmenus: RichMenuObject[] }> {
-    return this.request<{ richmenus: RichMenuObject[] }>(
-      '/richmenu/list',
-      {},
-      'GET',
-    );
+  async createRichMenu(config: RichMenuConfig): Promise<{ richMenuId: string }> {
+    return this.request("/richmenu", "POST", config);
   }
 
-  async createRichMenu(menu: RichMenuObject): Promise<{ richMenuId: string }> {
-    return this.request<{ richMenuId: string }>('/richmenu', menu);
+  async getRichMenus(): Promise<{ richmenus: Array<RichMenuConfig & { richMenuId: string }> }> {
+    return this.request("/richmenu/list");
   }
 
   async deleteRichMenu(richMenuId: string): Promise<void> {
-    await this.request(
-      `/richmenu/${encodeURIComponent(richMenuId)}`,
-      {},
-      'DELETE',
-    );
+    await this.request(`/richmenu/${richMenuId}`, "DELETE");
+  }
+
+  async setRichMenuForUser(userId: string, richMenuId: string): Promise<void> {
+    await this.request(`/user/${userId}/richmenu/${richMenuId}`, "POST");
+  }
+
+  async removeRichMenuFromUser(userId: string): Promise<void> {
+    await this.request(`/user/${userId}/richmenu`, "DELETE");
   }
 
   async setDefaultRichMenu(richMenuId: string): Promise<void> {
-    await this.request(
-      `/user/all/richmenu/${encodeURIComponent(richMenuId)}`,
-      {},
-    );
+    await this.request(`/user/all/richmenu/${richMenuId}`, "POST");
   }
 
-  async linkRichMenuToUser(userId: string, richMenuId: string): Promise<void> {
-    await this.request(
-      `/user/${encodeURIComponent(userId)}/richmenu/${encodeURIComponent(richMenuId)}`,
-      {},
-    );
-  }
-
-  async unlinkRichMenuFromUser(userId: string): Promise<void> {
-    await this.request(
-      `/user/${encodeURIComponent(userId)}/richmenu`,
-      {},
-      'DELETE',
-    );
-  }
-
-  async getRichMenuIdOfUser(userId: string): Promise<{ richMenuId: string }> {
-    return this.request<{ richMenuId: string }>(
-      `/user/${encodeURIComponent(userId)}/richmenu`,
-      {},
-      'GET',
-    );
-  }
-
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  async pushTextMessage(to: string, text: string): Promise<void> {
-    await this.pushMessage(to, [{ type: 'text', text }]);
-  }
-
-  async pushFlexMessage(
-    to: string,
-    altText: string,
-    contents: FlexContainer,
-  ): Promise<void> {
-    await this.pushMessage(to, [{ type: 'flex', altText, contents }]);
-  }
-
-  // ─── Rich Menu Image Upload ─────────────────────────────────────────────
-
-  /** Upload image to a rich menu. Accepts PNG/JPEG binary (ArrayBuffer or Uint8Array). */
-  async uploadRichMenuImage(
-    richMenuId: string,
-    imageData: ArrayBuffer,
-    contentType: 'image/png' | 'image/jpeg' = 'image/png',
-  ): Promise<void> {
-    const url = `https://api-data.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}/content`;
-    const res = await fetch(url, {
-      method: 'POST',
+  async uploadRichMenuImage(richMenuId: string, imageData: string | ArrayBuffer, contentType = "image/png"): Promise<void> {
+    let body: BodyInit;
+    if (typeof imageData === "string") {
+      const base64 = imageData.replace(/^data:image\/\w+;base64,/, "");
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      body = bytes;
+    } else {
+      body = imageData;
+    }
+    const res = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
+      method: "POST",
       headers: {
-        'Content-Type': contentType,
         Authorization: `Bearer ${this.channelAccessToken}`,
+        "Content-Type": contentType,
       },
-      body: imageData,
+      body,
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`LINE API error: ${res.status} ${res.statusText} — ${text}`);
+      throw new Error(`Failed to upload rich menu image: ${res.status}`);
     }
+  }
+
+  async pushTextMessage(to: string, text: string): Promise<void> {
+    await this.pushMessage(to, [{ type: "text", text }]);
+  }
+
+  async pushFlexMessage(to: string, altText: string, contents: Record<string, unknown>): Promise<void> {
+    await this.pushMessage(to, [{ type: "flex", altText, contents }]);
+  }
+
+  async getInsightMessageDelivery(date: string): Promise<InsightCountResponse> {
+    return this.request<InsightCountResponse>(`/insight/message/delivery?date=${date}`);
+  }
+
+  async getInsightFollowers(date: string): Promise<InsightCountResponse> {
+    return this.request<InsightCountResponse>(`/insight/followers?date=${date}`);
+  }
+
+  async getInsightDemographic(): Promise<InsightDemographicResponse> {
+    return this.request<InsightDemographicResponse>("/insight/demographic");
   }
 }

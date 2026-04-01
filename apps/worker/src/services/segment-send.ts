@@ -1,131 +1,79 @@
-import {
-  getBroadcastById,
-  updateBroadcastStatus,
-  jstNow,
-} from '@line-crm/db';
-import type { Broadcast } from '@line-crm/db';
-import type { LineClient, Message } from '@line-crm/line-sdk';
-import { calculateStaggerDelay, sleep, addMessageVariation } from './stealth.js';
-import { buildSegmentQuery } from './segment-query.js';
-import type { SegmentCondition } from './segment-query.js';
+import { updateBroadcastStatus } from "@line-crm/db";
+import { LineClient } from "@line-crm/line-sdk";
+import { addMessageVariation, calculateStaggerDelay } from "./stealth";
+import { getBroadcastById } from "@line-crm/db";
 
-const MULTICAST_BATCH_SIZE = 500;
+type Env = { DB: D1Database; LINE_CHANNEL_ACCESS_TOKEN: string };
 
-interface FriendRow {
-  id: string;
-  line_user_id: string;
+interface SegmentRule {
+  field: string;
+  operator: string;
+  value: string;
+}
+
+interface SegmentCondition {
+  logic: "AND" | "OR";
+  rules: SegmentRule[];
+}
+
+function buildSegmentQuery(condition: SegmentCondition): { query: string; params: unknown[] } {
+  const params: unknown[] = [];
+  const clauses = condition.rules.map((rule) => {
+    if (rule.field === "tag") {
+      if (rule.operator === "has") {
+        params.push(rule.value);
+        return "EXISTS (SELECT 1 FROM friend_tags ft JOIN tags t ON t.id = ft.tag_id WHERE ft.friend_id = f.id AND t.name = ?)";
+      } else {
+        params.push(rule.value);
+        return "NOT EXISTS (SELECT 1 FROM friend_tags ft JOIN tags t ON t.id = ft.tag_id WHERE ft.friend_id = f.id AND t.name = ?)";
+      }
+    } else if (rule.field === "is_following") {
+      return `f.is_following = ${rule.value === "true" ? 1 : 0}`;
+    }
+    return "1=1";
+  });
+  const logic = condition.logic === "AND" ? " AND " : " OR ";
+  return {
+    query: `SELECT f.line_user_id FROM friends f WHERE ${clauses.join(logic)}`,
+    params,
+  };
 }
 
 export async function processSegmentSend(
+  broadcastId: number,
+  conditions: SegmentCondition[],
   db: D1Database,
-  lineClient: LineClient,
-  broadcastId: string,
-  condition: SegmentCondition,
-): Promise<Broadcast> {
-  // Mark as sending
-  await updateBroadcastStatus(db, broadcastId, 'sending');
-
+  env: Env
+) {
   const broadcast = await getBroadcastById(db, broadcastId);
-  if (!broadcast) {
-    throw new Error(`Broadcast ${broadcastId} not found`);
-  }
+  if (!broadcast) return;
+  const b = broadcast as { message_type: string; message_content: string };
 
-  const message = buildMessage(broadcast.message_type, broadcast.message_content);
-
-  let totalCount = 0;
-  let successCount = 0;
+  await updateBroadcastStatus(db, broadcastId, "sending");
+  const lineClient = new LineClient(env.LINE_CHANNEL_ACCESS_TOKEN);
 
   try {
-    // Build and execute segment query to get matching friends
-    const { sql, bindings } = buildSegmentQuery(condition);
-    const queryResult = await db
-      .prepare(sql)
-      .bind(...bindings)
-      .all<FriendRow>();
-
-    const friends = queryResult.results ?? [];
-    totalCount = friends.length;
-
-    const now = jstNow();
-    const totalBatches = Math.ceil(friends.length / MULTICAST_BATCH_SIZE);
-
-    for (let i = 0; i < friends.length; i += MULTICAST_BATCH_SIZE) {
-      const batchIndex = Math.floor(i / MULTICAST_BATCH_SIZE);
-      const batch = friends.slice(i, i + MULTICAST_BATCH_SIZE);
-      const lineUserIds = batch.map((f) => f.line_user_id);
-
-      // Stealth: stagger delays between batches
-      if (batchIndex > 0) {
-        const delay = calculateStaggerDelay(friends.length, batchIndex);
-        await sleep(delay);
-      }
-
-      // Stealth: add slight variation to text messages
-      let batchMessage = message;
-      if (message.type === 'text' && totalBatches > 1) {
-        batchMessage = { ...message, text: addMessageVariation(message.text, batchIndex) };
-      }
-
-      try {
-        await lineClient.multicast(lineUserIds, [batchMessage]);
-        successCount += batch.length;
-
-        // Log successfully sent messages
-        for (const friend of batch) {
-          const logId = crypto.randomUUID();
-          await db
-            .prepare(
-              `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-               VALUES (?, ?, 'outgoing', ?, ?, ?, NULL, ?)`,
-            )
-            .bind(logId, friend.id, broadcast.message_type, broadcast.message_content, broadcastId, now)
-            .run();
-        }
-      } catch (err) {
-        console.error(`Segment multicast batch ${batchIndex} failed:`, err);
-        // Continue with next batch; failed batch is not logged
-      }
+    let userIds: string[] = [];
+    for (const condition of conditions) {
+      const { query, params } = buildSegmentQuery(condition);
+      const result = await db.prepare(query).bind(...params).all<{ line_user_id: string }>();
+      userIds = [...new Set([...userIds, ...result.results.map((r) => r.line_user_id)])];
     }
 
-    await updateBroadcastStatus(db, broadcastId, 'sent', { totalCount, successCount });
-  } catch (err) {
-    // On failure, reset to draft so it can be retried
-    await updateBroadcastStatus(db, broadcastId, 'draft');
-    throw err;
-  }
-
-  return (await getBroadcastById(db, broadcastId))!;
-}
-
-function buildMessage(messageType: string, messageContent: string): Message {
-  if (messageType === 'text') {
-    return { type: 'text', text: messageContent };
-  }
-
-  if (messageType === 'image') {
-    try {
-      const parsed = JSON.parse(messageContent) as {
-        originalContentUrl: string;
-        previewImageUrl: string;
-      };
-      return {
-        type: 'image',
-        originalContentUrl: parsed.originalContentUrl,
-        previewImageUrl: parsed.previewImageUrl,
-      };
-    } catch {
-      return { type: 'text', text: messageContent };
+    const batchSize = 500;
+    let successCount = 0;
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      const batch = userIds.slice(i, i + batchSize);
+      const msg = b.message_type === "text"
+        ? { type: "text" as const, text: addMessageVariation(b.message_content) }
+        : { type: "flex" as const, altText: "メッセージ", contents: JSON.parse(b.message_content) };
+      await lineClient.multicast(batch, [msg]);
+      successCount += batch.length;
+      const delay = calculateStaggerDelay(i / batchSize, userIds.length);
+      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     }
+    await updateBroadcastStatus(db, broadcastId, "sent", { totalCount: userIds.length, successCount });
+  } catch (e) {
+    await updateBroadcastStatus(db, broadcastId, "failed");
   }
-
-  if (messageType === 'flex') {
-    try {
-      const contents = JSON.parse(messageContent);
-      return { type: 'flex', altText: 'Message', contents };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-
-  return { type: 'text', text: messageContent };
 }

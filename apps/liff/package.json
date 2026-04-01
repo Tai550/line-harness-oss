@@ -3,12 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@liff/liff-types": "^2.24.0"
+    "dev": "vite --port 3002",
+    "build": "tsc && vite build"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

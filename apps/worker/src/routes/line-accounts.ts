@@ -1,123 +1,100 @@
-import { Hono } from 'hono';
-import {
-  getLineAccounts,
-  getLineAccountById,
-  createLineAccount,
-  updateLineAccount,
-  deleteLineAccount,
-} from '@line-crm/db';
-import type { LineAccount as DbLineAccount } from '@line-crm/db';
-import type { Env } from '../index.js';
+import { Hono } from "hono";
+import { getLineAccounts, getLineAccountById, createLineAccount, updateLineAccount, deleteLineAccount } from "@line-crm/db";
+import { LineClient } from "@line-crm/line-sdk";
+import type { LineAccountAnalytics } from "@line-crm/shared";
 
-const lineAccounts = new Hono<Env>();
+type Env = { DB: D1Database };
 
-function serializeLineAccount(row: DbLineAccount) {
-  return {
-    id: row.id,
-    channelId: row.channel_id,
-    name: row.name,
-    isActive: Boolean(row.is_active),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    // Intentionally omit channelAccessToken and channelSecret from list responses
-  };
+const app = new Hono<{ Bindings: Env }>();
+
+function formatInsightDate(rawDate?: string) {
+  const today = new Date();
+  today.setHours(today.getHours() + 9);
+  today.setDate(today.getDate() - 1);
+  const fallback = today.toISOString().slice(0, 10).replace(/-/g, "");
+
+  if (!rawDate) {
+    return fallback;
+  }
+
+  const normalized = rawDate.replace(/-/g, "");
+  if (!/^\d{8}$/.test(normalized)) {
+    throw new Error("date must be in YYYY-MM-DD or YYYYMMDD format");
+  }
+
+  return normalized;
 }
 
-function serializeLineAccountFull(row: DbLineAccount) {
-  return {
-    ...serializeLineAccount(row),
-    channelAccessToken: row.channel_access_token,
-    channelSecret: row.channel_secret,
-  };
-}
+app.get("/api/line-accounts", async (c) => {
+  const accounts = await getLineAccounts(c.env.DB);
+  return c.json({ success: true, data: accounts });
+});
 
-// GET /api/line-accounts - list all
-lineAccounts.get('/api/line-accounts', async (c) => {
+app.post("/api/line-accounts", async (c) => {
+  const body = await c.req.json<{ name: string; channelId: string; channelSecret: string; channelAccessToken: string }>();
+  const account = await createLineAccount(c.env.DB, body);
+  return c.json({ success: true, data: account });
+});
+
+app.get("/api/line-accounts/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const account = await getLineAccountById(c.env.DB, id);
+  if (!account) return c.json({ success: false, error: "Not found" }, 404);
+  return c.json({ success: true, data: account });
+});
+
+app.get("/api/line-accounts/:id/analytics", async (c) => {
+  const id = Number(c.req.param("id"));
+  const account = await getLineAccountById(c.env.DB, id) as { id: number; name: string; channel_access_token: string } | null;
+
+  if (!account) {
+    return c.json({ success: false, error: "Not found" }, 404);
+  }
+
+  let insightDate: string;
   try {
-    const items = await getLineAccounts(c.env.DB);
-    return c.json({ success: true, data: items.map(serializeLineAccount) });
-  } catch (err) {
-    console.error('GET /api/line-accounts error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
+    insightDate = formatInsightDate(c.req.query("date"));
+  } catch (error) {
+    return c.json({ success: false, error: error instanceof Error ? error.message : "Invalid date" }, 400);
+  }
+
+  try {
+    const client = new LineClient(account.channel_access_token);
+    const [delivery, followers, demographic] = await Promise.all([
+      client.getInsightMessageDelivery(insightDate),
+      client.getInsightFollowers(insightDate),
+      client.getInsightDemographic(),
+    ]);
+
+    const analytics: LineAccountAnalytics = {
+      accountId: account.id,
+      accountName: account.name,
+      requestedDate: insightDate,
+      delivery,
+      followers,
+      demographic,
+    };
+
+    return c.json({ success: true, data: analytics });
+  } catch (error) {
+    return c.json(
+      { success: false, error: error instanceof Error ? error.message : "Failed to fetch LINE analytics" },
+      502
+    );
   }
 });
 
-// GET /api/line-accounts/:id - get single (includes secrets)
-lineAccounts.get('/api/line-accounts/:id', async (c) => {
-  try {
-    const account = await getLineAccountById(c.env.DB, c.req.param('id'));
-    if (!account) {
-      return c.json({ success: false, error: 'LINE account not found' }, 404);
-    }
-    return c.json({ success: true, data: serializeLineAccountFull(account) });
-  } catch (err) {
-    console.error('GET /api/line-accounts/:id error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
+app.put("/api/line-accounts/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const body = await c.req.json();
+  await updateLineAccount(c.env.DB, id, body);
+  return c.json({ success: true });
 });
 
-// POST /api/line-accounts - create
-lineAccounts.post('/api/line-accounts', async (c) => {
-  try {
-    const body = await c.req.json<{
-      channelId: string;
-      name: string;
-      channelAccessToken: string;
-      channelSecret: string;
-    }>();
-
-    if (!body.channelId || !body.name || !body.channelAccessToken || !body.channelSecret) {
-      return c.json(
-        { success: false, error: 'channelId, name, channelAccessToken, and channelSecret are required' },
-        400,
-      );
-    }
-
-    const account = await createLineAccount(c.env.DB, body);
-    return c.json({ success: true, data: serializeLineAccountFull(account) }, 201);
-  } catch (err) {
-    console.error('POST /api/line-accounts error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
+app.delete("/api/line-accounts/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  await deleteLineAccount(c.env.DB, id);
+  return c.json({ success: true });
 });
 
-// PUT /api/line-accounts/:id - update
-lineAccounts.put('/api/line-accounts/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json<{
-      name?: string;
-      channelAccessToken?: string;
-      channelSecret?: string;
-      isActive?: boolean;
-    }>();
-
-    const updated = await updateLineAccount(c.env.DB, id, {
-      name: body.name,
-      channel_access_token: body.channelAccessToken,
-      channel_secret: body.channelSecret,
-      is_active: body.isActive !== undefined ? (body.isActive ? 1 : 0) : undefined,
-    });
-
-    if (!updated) {
-      return c.json({ success: false, error: 'LINE account not found' }, 404);
-    }
-    return c.json({ success: true, data: serializeLineAccountFull(updated) });
-  } catch (err) {
-    console.error('PUT /api/line-accounts/:id error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
-
-// DELETE /api/line-accounts/:id - delete
-lineAccounts.delete('/api/line-accounts/:id', async (c) => {
-  try {
-    await deleteLineAccount(c.env.DB, c.req.param('id'));
-    return c.json({ success: true, data: null });
-  } catch (err) {
-    console.error('DELETE /api/line-accounts/:id error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
-
-export { lineAccounts };
+export default app;

@@ -1,115 +1,47 @@
-import { jstNow } from './utils.js';
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-  created_at: string;
-}
+import { jstNow } from "./utils";
 
-export interface FriendTag {
-  friend_id: string;
-  tag_id: string;
-  assigned_at: string;
-}
-
-export async function getTags(db: D1Database): Promise<Tag[]> {
-  const result = await db
-    .prepare(`SELECT * FROM tags ORDER BY name ASC`)
-    .all<Tag>();
+export async function getTags(db: D1Database) {
+  const result = await db.prepare("SELECT * FROM tags ORDER BY name ASC").all();
   return result.results;
 }
 
-export interface CreateTagInput {
-  name: string;
-  color?: string;
-}
-
-export async function createTag(
-  db: D1Database,
-  input: CreateTagInput,
-): Promise<Tag> {
-  const id = crypto.randomUUID();
+export async function createTag(db: D1Database, name: string, color = "#3B82F6") {
   const now = jstNow();
-  const color = input.color ?? '#3B82F6';
-
-  await db
-    .prepare(
-      `INSERT INTO tags (id, name, color, created_at)
-       VALUES (?, ?, ?, ?)`,
-    )
-    .bind(id, input.name, color, now)
-    .run();
-
-  return (await db
-    .prepare(`SELECT * FROM tags WHERE id = ?`)
-    .bind(id)
-    .first<Tag>())!;
+  const result = await db
+    .prepare("INSERT INTO tags (name, color, created_at) VALUES (?, ?, ?) RETURNING *")
+    .bind(name, color, now)
+    .first();
+  return result;
 }
 
-export async function deleteTag(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM tags WHERE id = ?`).bind(id).run();
+export async function deleteTag(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM tags WHERE id = ?").bind(id).run();
 }
 
-export async function addTagToFriend(
-  db: D1Database,
-  friendId: string,
-  tagId: string,
-): Promise<void> {
+export async function addTagToFriend(db: D1Database, friendId: number, tagId: number) {
   const now = jstNow();
   await db
-    .prepare(
-      `INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at)
-       VALUES (?, ?, ?)`,
-    )
+    .prepare("INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?)")
     .bind(friendId, tagId, now)
     .run();
 }
 
-export async function removeTagFromFriend(
-  db: D1Database,
-  friendId: string,
-  tagId: string,
-): Promise<void> {
-  await db
-    .prepare(
-      `DELETE FROM friend_tags WHERE friend_id = ? AND tag_id = ?`,
-    )
-    .bind(friendId, tagId)
-    .run();
+export async function removeTagFromFriend(db: D1Database, friendId: number, tagId: number) {
+  await db.prepare("DELETE FROM friend_tags WHERE friend_id = ? AND tag_id = ?").bind(friendId, tagId).run();
 }
 
-export async function getFriendTags(
-  db: D1Database,
-  friendId: string,
-): Promise<Tag[]> {
+export async function getFriendTags(db: D1Database, friendId: number) {
   const result = await db
-    .prepare(
-      `SELECT t.*
-       FROM tags t
-       INNER JOIN friend_tags ft ON ft.tag_id = t.id
-       WHERE ft.friend_id = ?
-       ORDER BY t.name ASC`,
-    )
+    .prepare("SELECT t.* FROM tags t JOIN friend_tags ft ON ft.tag_id = t.id WHERE ft.friend_id = ?")
     .bind(friendId)
-    .all<Tag>();
+    .all();
   return result.results;
 }
 
-import type { Friend } from './friends';
-
-export async function getFriendsByTag(
-  db: D1Database,
-  tagId: string,
-): Promise<Friend[]> {
+export async function getFriendsByTag(db: D1Database, tagId: number) {
   const result = await db
-    .prepare(
-      `SELECT f.*
-       FROM friends f
-       INNER JOIN friend_tags ft ON ft.friend_id = f.id
-       WHERE ft.tag_id = ?
-       ORDER BY f.created_at DESC`,
-    )
+    .prepare("SELECT f.* FROM friends f JOIN friend_tags ft ON ft.friend_id = f.id WHERE ft.tag_id = ?")
     .bind(tagId)
-    .all<Friend>();
+    .all();
   return result.results;
 }

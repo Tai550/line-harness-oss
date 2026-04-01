@@ -1,247 +1,82 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import type { Scenario, ScenarioTriggerType } from '@line-crm/shared'
-import { api } from '@/lib/api'
-import Header from '@/components/layout/header'
-import ScenarioList from '@/components/scenarios/scenario-list'
-import CcPromptButton from '@/components/cc-prompt-button'
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
-const ccPrompts = [
-  {
-    title: '新しいシナリオを作成',
-    prompt: `新しいシナリオ配信を作成してください。
-1. ターゲット: [対象を指定]
-2. トリガー: 友だち追加 / タグ変更 / 手動
-3. ステップ数: [希望数]
-4. メッセージ内容の提案もお願いします
-各ステップの配信間隔も含めて構成してください。`,
-  },
-  {
-    title: 'シナリオの効果分析',
-    prompt: `現在のシナリオ配信の効果を分析してください。
-1. 各シナリオの配信実績を確認
-2. ステップごとの離脱率を分析
-3. 改善が必要なシナリオを特定
-具体的な改善案を提示してください。`,
-  },
-]
-
-type ScenarioWithCount = Scenario & { stepCount?: number }
-
-const triggerOptions: { value: ScenarioTriggerType; label: string }[] = [
-  { value: 'friend_add', label: '友だち追加時' },
-  { value: 'tag_added', label: 'タグ付与時' },
-  { value: 'manual', label: '手動' },
-]
-
-interface CreateFormState {
-  name: string
-  description: string
-  triggerType: ScenarioTriggerType
-  triggerTagId: string
-  isActive: boolean
+interface Scenario {
+  id: number;
+  name: string;
+  description: string | null;
+  trigger_type: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 export default function ScenariosPage() {
-  const [scenarios, setScenarios] = useState<ScenarioWithCount[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState<CreateFormState>({
-    name: '',
-    description: '',
-    triggerType: 'friend_add',
-    triggerTagId: '',
-    isActive: true,
-  })
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [name, setName] = useState("");
+  const [triggerType, setTriggerType] = useState("manual");
+  const [loading, setLoading] = useState(true);
 
-  const loadScenarios = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await api.scenarios.list()
-      if (res.success) {
-        setScenarios(res.data)
-      } else {
-        setError(res.error)
-      }
-    } catch {
-      setError('シナリオの読み込みに失敗しました。もう一度お試しください。')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const load = () => api.scenarios.list().then((r) => { setScenarios(r.data as Scenario[]); setLoading(false); });
 
-  useEffect(() => {
-    loadScenarios()
-  }, [loadScenarios])
+  useEffect(() => { load(); }, []);
 
-  const handleCreate = async () => {
-    if (!form.name.trim()) {
-      setFormError('シナリオ名を入力してください')
-      return
-    }
-    setSaving(true)
-    setFormError('')
-    try {
-      const res = await api.scenarios.create({
-        name: form.name,
-        description: form.description || null,
-        triggerType: form.triggerType,
-        triggerTagId: form.triggerTagId || null,
-        isActive: form.isActive,
-      })
-      if (res.success) {
-        setShowCreate(false)
-        setForm({ name: '', description: '', triggerType: 'friend_add', triggerTagId: '', isActive: true })
-        loadScenarios()
-      } else {
-        setFormError(res.error)
-      }
-    } catch {
-      setFormError('作成に失敗しました')
-    } finally {
-      setSaving(false)
-    }
-  }
+  const create = async () => {
+    if (!name.trim()) return;
+    await api.scenarios.create({ name, triggerType });
+    setName("");
+    load();
+  };
 
-  const handleToggleActive = async (id: string, current: boolean) => {
-    try {
-      await api.scenarios.update(id, { isActive: !current })
-      loadScenarios()
-    } catch {
-      setError('ステータスの変更に失敗しました')
-    }
-  }
+  const toggle = async (scenario: Scenario) => {
+    await api.scenarios.update(scenario.id, { isActive: !scenario.is_active });
+    load();
+  };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await api.scenarios.delete(id)
-      loadScenarios()
-    } catch {
-      setError('削除に失敗しました')
-    }
-  }
+  const del = async (id: number) => {
+    if (confirm("削除しますか？")) { await api.scenarios.delete(id); load(); }
+  };
+
+  const triggerLabel = (t: string) => ({ friend_add: "友だち追加", tag_added: "タグ付与", manual: "手動" }[t] ?? t);
 
   return (
     <div>
-      <Header
-        title="シナリオ配信"
-        action={
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
-          >
-            + 新規シナリオ
-          </button>
-        }
-      />
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">ステップ配信</h1>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-3">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="シナリオ名" className="flex-1 border rounded px-3 py-2 text-sm" />
+        <select value={triggerType} onChange={(e) => setTriggerType(e.target.value)} className="border rounded px-3 py-2 text-sm">
+          <option value="manual">手動</option>
+          <option value="friend_add">友だち追加</option>
+          <option value="tag_added">タグ付与</option>
+        </select>
+        <button onClick={create} className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">作成</button>
+      </div>
 
-      {/* Create form */}
-      {showCreate && (
-        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-800 mb-4">新規シナリオを作成</h2>
-          <div className="space-y-4 max-w-lg">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">シナリオ名 <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="例: 友だち追加ウェルカムシナリオ"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">説明</label>
-              <textarea
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                rows={2}
-                placeholder="シナリオの説明 (省略可)"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">トリガー</label>
-              <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                value={form.triggerType}
-                onChange={(e) => setForm({ ...form, triggerType: e.target.value as ScenarioTriggerType })}
-              >
-                {triggerOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={form.isActive}
-                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <label htmlFor="isActive" className="text-sm text-gray-600">作成後すぐに有効にする</label>
-            </div>
-
-            {formError && <p className="text-xs text-red-600">{formError}</p>}
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleCreate}
-                disabled={saving}
-                className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
-                style={{ backgroundColor: '#06C755' }}
-              >
-                {saving ? '作成中...' : '作成'}
-              </button>
-              <button
-                onClick={() => { setShowCreate(false); setFormError('') }}
-                className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Loading skeleton */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse space-y-3">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-3 bg-gray-100 rounded w-full" />
-              <div className="flex gap-4">
-                <div className="h-3 bg-gray-100 rounded w-24" />
-                <div className="h-3 bg-gray-100 rounded w-16" />
+      {loading ? <p className="text-gray-400">読み込み中...</p> : (
+        <div className="space-y-3">
+          {scenarios.map((s) => (
+            <div key={s.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium">{s.name}</h3>
+                  <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{triggerLabel(s.trigger_type)}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${s.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+                    {s.is_active ? "有効" : "無効"}
+                  </span>
+                </div>
+                {s.description && <p className="text-sm text-gray-500 mt-1">{s.description}</p>}
+              </div>
+              <div className="flex gap-2">
+                <a href={`/scenarios/detail?id=${s.id}`} className="text-sm text-blue-500 hover:underline">編集</a>
+                <button onClick={() => toggle(s)} className="text-sm text-gray-500 hover:text-gray-700">{s.is_active ? "無効化" : "有効化"}</button>
+                <button onClick={() => del(s.id)} className="text-sm text-red-400 hover:text-red-600">削除</button>
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        <ScenarioList
-          scenarios={scenarios}
-          onToggleActive={handleToggleActive}
-          onDelete={handleDelete}
-          loading={loading}
-        />
       )}
-
-      <CcPromptButton prompts={ccPrompts} />
     </div>
-  )
+  );
 }

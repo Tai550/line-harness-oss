@@ -1,406 +1,144 @@
-import { jstNow } from './utils.js';
-export type ScenarioTriggerType = 'friend_add' | 'tag_added' | 'manual';
-export type MessageType = 'text' | 'image' | 'flex';
-export type FriendScenarioStatus = 'active' | 'paused' | 'completed';
+import { jstNow } from "./utils";
 
-export interface Scenario {
-  id: string;
-  name: string;
-  description: string | null;
-  trigger_type: ScenarioTriggerType;
-  trigger_tag_id: string | null;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ScenarioStep {
-  id: string;
-  scenario_id: string;
-  step_order: number;
-  delay_minutes: number;
-  message_type: MessageType;
-  message_content: string;
-  condition_type: string | null;
-  condition_value: string | null;
-  next_step_on_false: number | null;
-  created_at: string;
-}
-
-export interface ScenarioWithSteps extends Scenario {
-  steps: ScenarioStep[];
-}
-
-export interface FriendScenario {
-  id: string;
-  friend_id: string;
-  scenario_id: string;
-  current_step_order: number;
-  status: FriendScenarioStatus;
-  started_at: string;
-  next_delivery_at: string | null;
-  updated_at: string;
-}
-
-// ============================================================
-// Scenario CRUD
-// ============================================================
-
-export type ScenarioWithStepCount = Scenario & { step_count: number };
-
-export async function getScenarios(db: D1Database): Promise<ScenarioWithStepCount[]> {
-  const result = await db
-    .prepare(
-      `SELECT s.*, COUNT(ss.id) as step_count
-       FROM scenarios s
-       LEFT JOIN scenario_steps ss ON s.id = ss.scenario_id
-       GROUP BY s.id
-       ORDER BY s.created_at DESC`,
-    )
-    .all<ScenarioWithStepCount>();
+export async function getScenarios(db: D1Database) {
+  const result = await db.prepare("SELECT * FROM scenarios ORDER BY created_at DESC").all();
   return result.results;
 }
 
-export async function getScenarioById(
-  db: D1Database,
-  id: string,
-): Promise<ScenarioWithSteps | null> {
-  const scenario = await db
-    .prepare(`SELECT * FROM scenarios WHERE id = ?`)
-    .bind(id)
-    .first<Scenario>();
-
-  if (!scenario) return null;
-
-  const stepsResult = await db
-    .prepare(
-      `SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC`,
-    )
-    .bind(id)
-    .all<ScenarioStep>();
-
-  return { ...scenario, steps: stepsResult.results };
+export async function getScenarioById(db: D1Database, id: number) {
+  return db.prepare("SELECT * FROM scenarios WHERE id = ?").bind(id).first();
 }
 
-export interface CreateScenarioInput {
+export async function createScenario(db: D1Database, data: {
   name: string;
-  description?: string | null;
-  triggerType: ScenarioTriggerType;
-  triggerTagId?: string | null;
+  description?: string;
+  triggerType: string;
+  triggerTagId?: number;
+}) {
+  const now = jstNow();
+  return db
+    .prepare("INSERT INTO scenarios (name, description, trigger_type, trigger_tag_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?) RETURNING *")
+    .bind(data.name, data.description ?? null, data.triggerType, data.triggerTagId ?? null, now, now)
+    .first();
 }
 
-export async function createScenario(
-  db: D1Database,
-  input: CreateScenarioInput,
-): Promise<Scenario> {
-  const id = crypto.randomUUID();
+export async function updateScenario(db: D1Database, id: number, data: Partial<{
+  name: string;
+  description: string;
+  triggerType: string;
+  isActive: boolean;
+}>) {
   const now = jstNow();
-
-  await db
-    .prepare(
-      `INSERT INTO scenarios (id, name, description, trigger_type, trigger_tag_id, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-    )
-    .bind(
-      id,
-      input.name,
-      input.description ?? null,
-      input.triggerType,
-      input.triggerTagId ?? null,
-      now,
-      now,
-    )
-    .run();
-
-  return (await db
-    .prepare(`SELECT * FROM scenarios WHERE id = ?`)
-    .bind(id)
-    .first<Scenario>())!;
-}
-
-export type UpdateScenarioInput = Partial<
-  Pick<Scenario, 'name' | 'description' | 'trigger_type' | 'trigger_tag_id' | 'is_active'>
->;
-
-export async function updateScenario(
-  db: D1Database,
-  id: string,
-  updates: UpdateScenarioInput,
-): Promise<Scenario | null> {
-  const now = jstNow();
-  const fields: string[] = [];
+  const sets: string[] = [];
   const values: unknown[] = [];
-
-  if (updates.name !== undefined) {
-    fields.push('name = ?');
-    values.push(updates.name);
-  }
-  if (updates.description !== undefined) {
-    fields.push('description = ?');
-    values.push(updates.description);
-  }
-  if (updates.trigger_type !== undefined) {
-    fields.push('trigger_type = ?');
-    values.push(updates.trigger_type);
-  }
-  if (updates.trigger_tag_id !== undefined) {
-    fields.push('trigger_tag_id = ?');
-    values.push(updates.trigger_tag_id);
-  }
-  if (updates.is_active !== undefined) {
-    fields.push('is_active = ?');
-    values.push(updates.is_active);
-  }
-
-  if (fields.length === 0) {
-    return db
-      .prepare(`SELECT * FROM scenarios WHERE id = ?`)
-      .bind(id)
-      .first<Scenario>();
-  }
-
-  fields.push('updated_at = ?');
+  if (data.name !== undefined) { sets.push("name = ?"); values.push(data.name); }
+  if (data.description !== undefined) { sets.push("description = ?"); values.push(data.description); }
+  if (data.triggerType !== undefined) { sets.push("trigger_type = ?"); values.push(data.triggerType); }
+  if (data.isActive !== undefined) { sets.push("is_active = ?"); values.push(data.isActive ? 1 : 0); }
+  sets.push("updated_at = ?");
   values.push(now);
   values.push(id);
-
-  await db
-    .prepare(`UPDATE scenarios SET ${fields.join(', ')} WHERE id = ?`)
-    .bind(...values)
-    .run();
-
-  return db
-    .prepare(`SELECT * FROM scenarios WHERE id = ?`)
-    .bind(id)
-    .first<Scenario>();
+  await db.prepare(`UPDATE scenarios SET ${sets.join(", ")} WHERE id = ?`).bind(...values).run();
 }
 
-export async function deleteScenario(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM scenarios WHERE id = ?`).bind(id).run();
+export async function deleteScenario(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM scenarios WHERE id = ?").bind(id).run();
 }
 
-// ============================================================
-// Scenario Steps
-// ============================================================
-
-export interface CreateScenarioStepInput {
-  scenarioId: string;
-  stepOrder: number;
-  delayMinutes?: number;
-  messageType: MessageType;
-  messageContent: string;
-  conditionType?: string | null;
-  conditionValue?: string | null;
-  nextStepOnFalse?: number | null;
-}
-
-export async function createScenarioStep(
-  db: D1Database,
-  input: CreateScenarioStepInput,
-): Promise<ScenarioStep> {
-  const id = crypto.randomUUID();
-  const now = jstNow();
-
-  await db
-    .prepare(
-      `INSERT INTO scenario_steps (id, scenario_id, step_order, delay_minutes, message_type, message_content, condition_type, condition_value, next_step_on_false, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      id,
-      input.scenarioId,
-      input.stepOrder,
-      input.delayMinutes ?? 0,
-      input.messageType,
-      input.messageContent,
-      input.conditionType ?? null,
-      input.conditionValue ?? null,
-      input.nextStepOnFalse ?? null,
-      now,
-    )
-    .run();
-
-  return (await db
-    .prepare(`SELECT * FROM scenario_steps WHERE id = ?`)
-    .bind(id)
-    .first<ScenarioStep>())!;
-}
-
-export type UpdateScenarioStepInput = Partial<
-  Pick<ScenarioStep, 'step_order' | 'delay_minutes' | 'message_type' | 'message_content' | 'condition_type' | 'condition_value' | 'next_step_on_false'>
->;
-
-export async function updateScenarioStep(
-  db: D1Database,
-  id: string,
-  updates: UpdateScenarioStepInput,
-): Promise<ScenarioStep | null> {
-  const fields: string[] = [];
-  const values: unknown[] = [];
-
-  if (updates.step_order !== undefined) {
-    fields.push('step_order = ?');
-    values.push(updates.step_order);
-  }
-  if (updates.delay_minutes !== undefined) {
-    fields.push('delay_minutes = ?');
-    values.push(updates.delay_minutes);
-  }
-  if (updates.message_type !== undefined) {
-    fields.push('message_type = ?');
-    values.push(updates.message_type);
-  }
-  if (updates.message_content !== undefined) {
-    fields.push('message_content = ?');
-    values.push(updates.message_content);
-  }
-  if (updates.condition_type !== undefined) {
-    fields.push('condition_type = ?');
-    values.push(updates.condition_type);
-  }
-  if (updates.condition_value !== undefined) {
-    fields.push('condition_value = ?');
-    values.push(updates.condition_value);
-  }
-  if (updates.next_step_on_false !== undefined) {
-    fields.push('next_step_on_false = ?');
-    values.push(updates.next_step_on_false);
-  }
-
-  if (fields.length > 0) {
-    values.push(id);
-    await db
-      .prepare(`UPDATE scenario_steps SET ${fields.join(', ')} WHERE id = ?`)
-      .bind(...values)
-      .run();
-  }
-
-  return db
-    .prepare(`SELECT * FROM scenario_steps WHERE id = ?`)
-    .bind(id)
-    .first<ScenarioStep>();
-}
-
-export async function deleteScenarioStep(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM scenario_steps WHERE id = ?`).bind(id).run();
-}
-
-export async function getScenarioSteps(
-  db: D1Database,
-  scenarioId: string,
-): Promise<ScenarioStep[]> {
+export async function getScenarioSteps(db: D1Database, scenarioId: number) {
   const result = await db
-    .prepare(
-      `SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC`,
-    )
+    .prepare("SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC")
     .bind(scenarioId)
-    .all<ScenarioStep>();
+    .all();
   return result.results;
 }
 
-// ============================================================
-// Friend Scenario Enrollments
-// ============================================================
-
-export async function enrollFriendInScenario(
-  db: D1Database,
-  friendId: string,
-  scenarioId: string,
-): Promise<FriendScenario> {
-  const id = crypto.randomUUID();
+export async function createScenarioStep(db: D1Database, data: {
+  scenarioId: number;
+  stepOrder: number;
+  delayMinutes: number;
+  messageType: string;
+  messageContent: string;
+  conditionType?: string;
+  conditionValue?: string;
+  nextStepOnFalse?: number;
+}) {
   const now = jstNow();
-
-  // Get the first step to calculate next_delivery_at
-  const firstStep = await db
-    .prepare(
-      `SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC LIMIT 1`,
-    )
-    .bind(scenarioId)
-    .first<{ step_order: number; delay_minutes: number }>();
-
-  // A scenario with no steps is immediately completed — no stuck active enrollment.
-  if (!firstStep) {
-    await db
-      .prepare(
-        `INSERT INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
-         VALUES (?, ?, ?, 0, 'completed', ?, NULL, ?)`,
-      )
-      .bind(id, friendId, scenarioId, now, now)
-      .run();
-
-    return (await db
-      .prepare(`SELECT * FROM friend_scenarios WHERE id = ?`)
-      .bind(id)
-      .first<FriendScenario>())!;
-  }
-
-  const nextDeliveryAt = new Date(Date.now() + 9 * 60 * 60_000 + firstStep.delay_minutes * 60_000)
-    .toISOString().slice(0, -1) + '+09:00';
-
-  await db
-    .prepare(
-      `INSERT INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
-       VALUES (?, ?, ?, 0, 'active', ?, ?, ?)`,
-    )
-    .bind(id, friendId, scenarioId, now, nextDeliveryAt, now)
-    .run();
-
-  return (await db
-    .prepare(`SELECT * FROM friend_scenarios WHERE id = ?`)
-    .bind(id)
-    .first<FriendScenario>())!;
+  return db
+    .prepare("INSERT INTO scenario_steps (scenario_id, step_order, delay_minutes, message_type, message_content, condition_type, condition_value, next_step_on_false, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *")
+    .bind(data.scenarioId, data.stepOrder, data.delayMinutes, data.messageType, data.messageContent, data.conditionType ?? null, data.conditionValue ?? null, data.nextStepOnFalse ?? null, now)
+    .first();
 }
 
-export async function getFriendScenariosDueForDelivery(
-  db: D1Database,
-  now: string,
-): Promise<FriendScenario[]> {
-  // Fetch all active scenarios with a delivery time, then filter by epoch comparison
-  // to handle mixed timestamp formats (Z and +09:00) during migration
+export async function updateScenarioStep(db: D1Database, id: number, data: Partial<{
+  stepOrder: number;
+  delayMinutes: number;
+  messageType: string;
+  messageContent: string;
+  conditionType: string;
+  conditionValue: string;
+  nextStepOnFalse: number;
+}>) {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  if (data.stepOrder !== undefined) { sets.push("step_order = ?"); values.push(data.stepOrder); }
+  if (data.delayMinutes !== undefined) { sets.push("delay_minutes = ?"); values.push(data.delayMinutes); }
+  if (data.messageType !== undefined) { sets.push("message_type = ?"); values.push(data.messageType); }
+  if (data.messageContent !== undefined) { sets.push("message_content = ?"); values.push(data.messageContent); }
+  if (data.conditionType !== undefined) { sets.push("condition_type = ?"); values.push(data.conditionType); }
+  if (data.conditionValue !== undefined) { sets.push("condition_value = ?"); values.push(data.conditionValue); }
+  if (data.nextStepOnFalse !== undefined) { sets.push("next_step_on_false = ?"); values.push(data.nextStepOnFalse); }
+  if (sets.length === 0) return;
+  values.push(id);
+  await db.prepare(`UPDATE scenario_steps SET ${sets.join(", ")} WHERE id = ?`).bind(...values).run();
+}
+
+export async function deleteScenarioStep(db: D1Database, id: number) {
+  await db.prepare("DELETE FROM scenario_steps WHERE id = ?").bind(id).run();
+}
+
+export async function enrollFriendInScenario(db: D1Database, friendId: number, scenarioId: number) {
+  const now = jstNow();
+  const firstStep = await db
+    .prepare("SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC LIMIT 1")
+    .bind(scenarioId)
+    .first<{ delay_minutes: number }>();
+
+  const nextDeliveryAt = firstStep
+    ? new Date(new Date().getTime() + firstStep.delay_minutes * 60 * 1000).toISOString()
+    : null;
+
+  await db
+    .prepare("INSERT INTO friend_scenarios (friend_id, scenario_id, current_step, status, next_delivery_at, started_at) VALUES (?, ?, 0, 'active', ?, ?)")
+    .bind(friendId, scenarioId, nextDeliveryAt, now)
+    .run();
+}
+
+export async function getFriendScenariosDueForDelivery(db: D1Database) {
+  const now = new Date().toISOString();
   const result = await db
     .prepare(
-      `SELECT * FROM friend_scenarios
-       WHERE status = 'active'
-         AND next_delivery_at IS NOT NULL`,
+      `SELECT fs.*, s.name as scenario_name FROM friend_scenarios fs
+       JOIN scenarios s ON s.id = fs.scenario_id
+       WHERE fs.status = 'active' AND fs.next_delivery_at <= ?
+       LIMIT 100`
     )
-    .all<FriendScenario>();
-  const nowMs = new Date(now).getTime();
-  return result.results
-    .filter((fs) => new Date(fs.next_delivery_at!).getTime() <= nowMs)
-    .sort((a, b) => new Date(a.next_delivery_at!).getTime() - new Date(b.next_delivery_at!).getTime());
+    .bind(now)
+    .all();
+  return result.results;
 }
 
-export async function advanceFriendScenario(
-  db: D1Database,
-  id: string,
-  nextStepOrder: number,
-  nextDeliveryAt?: string | null,
-): Promise<void> {
-  const now = jstNow();
+export async function advanceFriendScenario(db: D1Database, friendScenarioId: number, nextStepOrder: number, nextDeliveryAt: string | null) {
   await db
-    .prepare(
-      `UPDATE friend_scenarios
-       SET current_step_order = ?,
-           next_delivery_at = ?,
-           updated_at = ?
-       WHERE id = ?`,
-    )
-    .bind(nextStepOrder, nextDeliveryAt ?? null, now, id)
+    .prepare("UPDATE friend_scenarios SET current_step = ?, next_delivery_at = ? WHERE id = ?")
+    .bind(nextStepOrder, nextDeliveryAt, friendScenarioId)
     .run();
 }
 
-export async function completeFriendScenario(
-  db: D1Database,
-  id: string,
-): Promise<void> {
+export async function completeFriendScenario(db: D1Database, friendScenarioId: number) {
   const now = jstNow();
   await db
-    .prepare(
-      `UPDATE friend_scenarios
-       SET status = 'completed',
-           next_delivery_at = NULL,
-           updated_at = ?
-       WHERE id = ?`,
-    )
-    .bind(now, id)
+    .prepare("UPDATE friend_scenarios SET status = 'completed', completed_at = ? WHERE id = ?")
+    .bind(now, friendScenarioId)
     .run();
 }

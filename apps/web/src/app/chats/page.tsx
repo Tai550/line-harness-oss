@@ -1,474 +1,209 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { api } from '@/lib/api'
-import Header from '@/components/layout/header'
-import CcPromptButton from '@/components/cc-prompt-button'
+import { useEffect, useRef, useState } from "react";
+import { api } from "@/lib/api";
 
 interface Chat {
-  id: string
-  friendId: string
-  friendName: string
-  friendPictureUrl: string | null
-  operatorId: string | null
-  status: 'unread' | 'in_progress' | 'resolved'
-  notes: string | null
-  lastMessageAt: string | null
-  createdAt: string
-  updatedAt: string
+  id: number;
+  friend_id: number;
+  friend_name: string;
+  picture_url: string | null;
+  status: string;
+  last_message_at: string | null;
 }
 
-interface ChatMessage {
-  id: string
-  direction: 'incoming' | 'outgoing'
-  messageType: string
-  content: string
-  createdAt: string
+interface Message {
+  id: number;
+  direction: string;
+  message_type: string;
+  content: string;
+  created_at: string;
 }
 
-interface ChatDetail extends Chat {
-  friendName: string
-  friendPictureUrl: string | null
-  messages?: ChatMessage[]
+interface ChatDetail {
+  id: number;
+  friend_name: string;
+  line_user_id: string;
+  status: string;
+  messages: Message[];
 }
 
-type StatusFilter = 'all' | 'unread' | 'in_progress' | 'resolved'
-
-const statusConfig: Record<Chat['status'], { label: string; className: string }> = {
-  unread: { label: '未読', className: 'bg-red-100 text-red-700' },
-  in_progress: { label: '対応中', className: 'bg-yellow-100 text-yellow-700' },
-  resolved: { label: '解決済', className: 'bg-green-100 text-green-700' },
+interface Operator {
+  id: number;
+  name: string;
+  email: string;
 }
-
-const statusFilters: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: '全て' },
-  { key: 'unread', label: '未読' },
-  { key: 'in_progress', label: '対応中' },
-  { key: 'resolved', label: '解決済' },
-]
-
-function formatDatetime(iso: string | null): string {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const ccPrompts = [
-  {
-    title: 'チャット対応テンプレート',
-    prompt: `チャット対応で使えるテンプレートメッセージを作成してください。
-1. よくある質問への回答テンプレート（挨拶、FAQ、サポート）
-2. クレーム対応用の丁寧な返信テンプレート
-3. フォローアップメッセージのテンプレート
-手順を示してください。`,
-  },
-  {
-    title: '未対応チャット確認',
-    prompt: `未対応のチャットを確認し、対応優先度を整理してください。
-1. 未読・対応中のチャット数を集計
-2. 最終メッセージからの経過時間で優先度を判定
-3. 長時間未対応のチャットへの対応アクションを提案
-結果をレポートしてください。`,
-  },
-]
 
 export default function ChatsPage() {
-  const [chats, setChats] = useState<Chat[]>([])
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
-  const [chatDetail, setChatDetail] = useState<ChatDetail | null>(null)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [loading, setLoading] = useState(true)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [messageContent, setMessageContent] = useState('')
-  const [sending, setSending] = useState(false)
-  const [notes, setNotes] = useState('')
-  const [savingNotes, setSavingNotes] = useState(false)
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [selectedChat, setSelectedChat] = useState<ChatDetail | null>(null);
+  const [text, setText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [operators, setOperators] = useState<Operator[]>([]);
+  const [operatorName, setOperatorName] = useState("");
+  const [operatorEmail, setOperatorEmail] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadChats = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const params: Record<string, string> = {}
-      if (statusFilter !== 'all') params.status = statusFilter
-      const res = await api.chats.list(params)
-      if (res.success) {
-        setChats(res.data as unknown as Chat[])
-      } else {
-        setError(res.error)
-      }
-    } catch {
-      setError('チャットの読み込みに失敗しました。もう一度お試しください。')
-    } finally {
-      setLoading(false)
-    }
-  }, [statusFilter])
+  const loadChats = async () => {
+    const response = await api.chats.list(statusFilter || undefined);
+    setChats(response.data as Chat[]);
+  };
 
-  const loadChatDetail = useCallback(async (chatId: string) => {
-    setDetailLoading(true)
-    try {
-      const res = await api.chats.get(chatId)
-      if (res.success) {
-        setChatDetail(res.data as unknown as ChatDetail)
-        setNotes((res.data as unknown as ChatDetail).notes || '')
-      }
-    } catch {
-      setError('チャット詳細の読み込みに失敗しました。')
-    } finally {
-      setDetailLoading(false)
-    }
-  }, [])
+  const loadOperators = async () => {
+    const response = await api.operators.list();
+    setOperators(response.data as Operator[]);
+  };
+
+  const loadChat = (id: number) => api.chats.get(id).then((r) => setSelectedChat(r.data as ChatDetail));
 
   useEffect(() => {
-    loadChats()
-  }, [loadChats])
+    loadChats();
+  }, [statusFilter]);
 
   useEffect(() => {
-    if (selectedChatId) {
-      loadChatDetail(selectedChatId)
-    } else {
-      setChatDetail(null)
-    }
-  }, [selectedChatId, loadChatDetail])
+    loadOperators();
+  }, []);
 
-  const handleSelectChat = (chatId: string) => {
-    setSelectedChatId(chatId)
-    setMessageContent('')
-  }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedChat?.messages]);
 
-  const handleSendMessage = async () => {
-    if (!selectedChatId || !messageContent.trim()) return
-    setSending(true)
-    try {
-      await api.chats.send(selectedChatId, { content: messageContent.trim() })
-      setMessageContent('')
-      loadChatDetail(selectedChatId)
-      loadChats()
-    } catch {
-      setError('メッセージの送信に失敗しました。')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const handleStatusUpdate = async (newStatus: Chat['status']) => {
-    if (!selectedChatId) return
-    try {
-      await api.chats.update(selectedChatId, { status: newStatus })
-      loadChatDetail(selectedChatId)
-      loadChats()
-    } catch {
-      setError('ステータスの更新に失敗しました。')
-    }
-  }
-
-  const handleSaveNotes = async () => {
-    if (!selectedChatId) return
-    setSavingNotes(true)
-    try {
-      await api.chats.update(selectedChatId, { notes })
-      loadChatDetail(selectedChatId)
-    } catch {
-      setError('メモの保存に失敗しました。')
-    } finally {
-      setSavingNotes(false)
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
+  const send = async () => {
+    if (!text.trim() || !selectedChat) return;
+    await api.chats.send(selectedChat.id, text);
+    setText("");
+    await loadChat(selectedChat.id);
+    await loadChats();
+  };
 
   return (
-    <div>
-      <Header title="オペレーターチャット" />
-
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      <div className="flex gap-4 h-[calc(100vh-120px)] lg:h-[calc(100vh-180px)]">
-        {/* Left Panel: Chat List */}
-        <div className={`w-full lg:w-96 lg:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex-col overflow-hidden ${selectedChatId ? 'hidden lg:flex' : 'flex'}`}>
-          {/* Status Filter Tabs */}
-          <div className="flex border-b border-gray-200">
-            {statusFilters.map((filter) => (
-              <button
-                key={filter.key}
-                onClick={() => { setStatusFilter(filter.key); setSelectedChatId(null) }}
-                className={`flex-1 px-3 py-2.5 min-h-[44px] text-xs font-medium transition-colors ${
-                  statusFilter === filter.key
-                    ? 'text-white'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                style={statusFilter === filter.key ? { backgroundColor: '#06C755' } : undefined}
-              >
-                {filter.label}
-              </button>
-            ))}
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+        <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">チャット</h1>
+            <p className="text-sm text-gray-500">有人対応、解決ステータス管理、オペレーター管理を行います。</p>
           </div>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded px-3 py-2 text-sm">
+            <option value="">すべて</option>
+            <option value="unread">unread</option>
+            <option value="active">active</option>
+            <option value="resolved">resolved</option>
+          </select>
+        </div>
 
-          {/* Chat List */}
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div>
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="px-4 py-3 border-b border-gray-100 animate-pulse">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 bg-gray-200 rounded w-32" />
-                        <div className="h-2 bg-gray-100 rounded w-20" />
-                      </div>
-                      <div className="h-5 bg-gray-100 rounded-full w-12" />
+        <div className="grid md:grid-cols-[1fr_1fr_auto] gap-3">
+          <input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} placeholder="オペレーター名" className="border rounded px-3 py-2 text-sm" />
+          <input value={operatorEmail} onChange={(e) => setOperatorEmail(e.target.value)} placeholder="メール" className="border rounded px-3 py-2 text-sm" />
+          <button
+            onClick={async () => {
+              if (!operatorName || !operatorEmail) return;
+              await api.operators.create({ name: operatorName, email: operatorEmail });
+              setOperatorName("");
+              setOperatorEmail("");
+              await loadOperators();
+            }}
+            className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
+          >
+            追加
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {operators.map((operator) => (
+            <span key={operator.id} className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
+              {operator.name}
+              <button
+                onClick={async () => {
+                  await api.operators.delete(operator.id);
+                  await loadOperators();
+                }}
+                className="text-xs text-gray-500 hover:text-red-600"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex h-[calc(100vh-14rem)] gap-4">
+        <div className="w-72 bg-white rounded-xl shadow-sm overflow-y-auto">
+          <div className="p-3 border-b">
+            <h2 className="font-medium text-sm">チャット一覧</h2>
+          </div>
+          {chats.map((chat) => (
+            <button
+              key={chat.id}
+              onClick={() => {
+                loadChat(chat.id);
+                loadChats();
+              }}
+              className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 border-b text-left ${selectedChat?.id === chat.id ? "bg-green-50" : ""}`}
+            >
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm shrink-0">
+                {chat.friend_name[0]}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate">{chat.friend_name}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${chat.status === "unread" ? "bg-red-100 text-red-600" : chat.status === "resolved" ? "bg-gray-100 text-gray-500" : "bg-green-100 text-green-700"}`}>{chat.status}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 bg-white rounded-xl shadow-sm flex flex-col">
+          {selectedChat ? (
+            <>
+              <div className="p-4 border-b flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-medium">{selectedChat.friend_name}</h2>
+                <div className="flex gap-2">
+                  {["unread", "active", "resolved"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => api.chats.updateStatus(selectedChat.id, status).then(async () => { await loadChat(selectedChat.id); await loadChats(); })}
+                      className={`text-sm px-3 py-1 rounded ${selectedChat.status === status ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {[...selectedChat.messages].reverse().map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm ${msg.direction === "outbound" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-800"}`}>
+                      <p>{msg.content}</p>
+                      <p className={`mt-1 text-[10px] ${msg.direction === "outbound" ? "text-green-50" : "text-gray-400"}`}>
+                        {new Date(msg.created_at).toLocaleString("ja-JP")}
+                      </p>
                     </div>
                   </div>
                 ))}
+                <div ref={messagesEndRef} />
               </div>
-            ) : chats.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-gray-500 text-sm">チャットがありません。</p>
-              </div>
-            ) : (
-              chats.map((chat) => {
-                const statusInfo = statusConfig[chat.status]
-                const isSelected = selectedChatId === chat.id
-
-                return (
-                  <button
-                    key={chat.id}
-                    onClick={() => handleSelectChat(chat.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 transition-colors ${
-                      isSelected ? 'bg-green-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {chat.friendPictureUrl ? (
-                        <img src={chat.friendPictureUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <span className="text-gray-500 text-sm">{chat.friendName.charAt(0)}</span>
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {chat.friendName}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {formatDatetime(chat.lastMessageAt)}
-                        </p>
-                      </div>
-                      <span
-                        className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${statusInfo.className}`}
-                      >
-                        {statusInfo.label}
-                      </span>
-                    </div>
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Right Panel: Chat Detail */}
-        <div className={`flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex-col overflow-hidden ${selectedChatId ? 'flex' : 'hidden lg:flex'}`}>
-          {!selectedChatId ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">チャットを選択してください</p>
-            </div>
-          ) : detailLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">読み込み中...</p>
-            </div>
-          ) : chatDetail ? (
-            <>
-              {/* Chat Header */}
-              <div className="px-4 py-4 border-b border-gray-200 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <button
-                    onClick={() => setSelectedChatId(null)}
-                    className="lg:hidden flex-shrink-0 p-1 -ml-1 text-gray-500 hover:text-gray-700"
-                    aria-label="戻る"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  {chatDetail.friendPictureUrl && (
-                    <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {chatDetail.friendName}
-                    </p>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${statusConfig[chatDetail.status].className}`}
-                    >
-                      {statusConfig[chatDetail.status].label}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {chatDetail.status !== 'unread' && (
-                    <button
-                      onClick={() => handleStatusUpdate('unread')}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
-                    >
-                      未読に戻す
-                    </button>
-                  )}
-                  {chatDetail.status !== 'in_progress' && (
-                    <button
-                      onClick={() => handleStatusUpdate('in_progress')}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md transition-colors"
-                    >
-                      対応中にする
-                    </button>
-                  )}
-                  {chatDetail.status !== 'resolved' && (
-                    <button
-                      onClick={() => handleStatusUpdate('resolved')}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
-                    >
-                      解決済にする
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Messages — LINE-style chat bubbles */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ backgroundColor: '#7494C0' }}>
-                {(!chatDetail.messages || chatDetail.messages.length === 0) ? (
-                  <div className="text-center py-8">
-                    <p className="text-white/60 text-sm">メッセージはまだありません。</p>
-                  </div>
-                ) : (
-                  (chatDetail.messages ?? []).map((msg) => {
-                    const isOutgoing = msg.direction === 'outgoing'
-
-                    // メッセージ表示の分岐
-                    let bubbleContent: React.ReactNode
-                    if (msg.messageType === 'flex') {
-                      // Flexメッセージ — JSONをフォーマットして表示
-                      let formatted = msg.content
-                      try {
-                        formatted = JSON.stringify(JSON.parse(msg.content), null, 2)
-                      } catch { /* use raw */ }
-                      bubbleContent = (
-                        <div className="max-w-[300px]">
-                          <div className="text-xs font-medium mb-1 opacity-70">📋 Flex Message</div>
-                          <pre className="text-xs overflow-x-auto whitespace-pre-wrap bg-black/10 rounded p-2 max-h-[200px] overflow-y-auto" style={{ fontSize: '10px' }}>
-                            {formatted}
-                          </pre>
-                        </div>
-                      )
-                    } else if (msg.messageType === 'image') {
-                      try {
-                        const parsed = JSON.parse(msg.content)
-                        bubbleContent = (
-                          <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
-                        )
-                      } catch {
-                        bubbleContent = <span>🖼️ [画像]</span>
-                      }
-                    } else {
-                      bubbleContent = <span>{msg.content}</span>
+              <div className="p-4 border-t flex gap-2">
+                <input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
                     }
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex items-end gap-2 ${isOutgoing ? 'justify-end' : 'justify-start'}`}
-                      >
-                        {/* 相手のアイコン（incoming のみ） */}
-                        {!isOutgoing && (
-                          chatDetail.friendPictureUrl ? (
-                            <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0 mb-1" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 mb-1" />
-                          )
-                        )}
-
-                        <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'}`}>
-                          {/* メッセージバブル */}
-                          <div
-                            className={`max-w-[320px] px-3 py-2 text-sm break-words whitespace-pre-wrap ${
-                              isOutgoing
-                                ? 'rounded-tl-2xl rounded-tr-md rounded-bl-2xl rounded-br-2xl text-white'
-                                : 'rounded-tl-md rounded-tr-2xl rounded-bl-2xl rounded-br-2xl bg-white text-gray-900'
-                            }`}
-                            style={isOutgoing ? { backgroundColor: '#06C755' } : undefined}
-                          >
-                            {bubbleContent}
-                          </div>
-                          {/* 時刻 */}
-                          <span className="text-xs text-white/50 mt-0.5 px-1">
-                            {new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              {/* Notes */}
-              <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="メモを入力..."
-                    className="flex-1 text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
-                  />
-                  <button
-                    onClick={handleSaveNotes}
-                    disabled={savingNotes}
-                    className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
-                  >
-                    {savingNotes ? '保存中...' : 'メモ保存'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Send Message Form */}
-              <div className="px-4 py-3 border-t border-gray-200">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={messageContent}
-                    onChange={(e) => setMessageContent(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="メッセージを入力..."
-                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={sending || !messageContent.trim()}
-                    className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: '#06C755' }}
-                  >
-                    {sending ? '送信中...' : '送信'}
-                  </button>
-                </div>
+                  }}
+                  placeholder="メッセージを入力..."
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                />
+                <button onClick={send} className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">送信</button>
               </div>
             </>
-          ) : null}
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">チャットを選択してください</div>
+          )}
         </div>
       </div>
-      <CcPromptButton prompts={ccPrompts} />
     </div>
-  )
+  );
 }

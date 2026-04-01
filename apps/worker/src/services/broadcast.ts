@@ -1,156 +1,58 @@
-import {
-  getBroadcastById,
-  getBroadcasts,
-  updateBroadcastStatus,
-  getFriendsByTag,
-  jstNow,
-} from '@line-crm/db';
-import type { Broadcast } from '@line-crm/db';
-import type { LineClient } from '@line-crm/line-sdk';
-import type { Message } from '@line-crm/line-sdk';
-import { calculateStaggerDelay, sleep, addMessageVariation } from './stealth.js';
+import { getBroadcastById, updateBroadcastStatus, getFriendsByTag } from "@line-crm/db";
+import { LineClient } from "@line-crm/line-sdk";
+import { addMessageVariation, calculateStaggerDelay } from "./stealth";
+import type { OutboundMessage } from "@line-crm/line-sdk";
+import { getScheduledBroadcastsDue } from "@line-crm/db";
 
-const MULTICAST_BATCH_SIZE = 500;
+type Env = { DB: D1Database; LINE_CHANNEL_ACCESS_TOKEN: string };
 
-export async function processBroadcastSend(
-  db: D1Database,
-  lineClient: LineClient,
-  broadcastId: string,
-): Promise<Broadcast> {
-  // Mark as sending
-  await updateBroadcastStatus(db, broadcastId, 'sending');
+function buildMessage(type: string, content: string): OutboundMessage {
+  if (type === "text") return { type: "text", text: content };
+  if (type === "image") return { type: "image", originalContentUrl: content, previewImageUrl: content };
+  if (type === "flex") return { type: "flex", altText: "メッセージ", contents: JSON.parse(content) };
+  return { type: "text", text: content };
+}
 
+export async function processBroadcastSend(db: D1Database, env: Env, broadcastId: number) {
   const broadcast = await getBroadcastById(db, broadcastId);
-  if (!broadcast) {
-    throw new Error(`Broadcast ${broadcastId} not found`);
-  }
+  if (!broadcast) return;
+  const b = broadcast as { id: number; message_type: string; message_content: string; target_type: string; target_tag_id: number | null };
 
-  const message = buildMessage(broadcast.message_type, broadcast.message_content);
-  let totalCount = 0;
+  await updateBroadcastStatus(db, broadcastId, "sending");
+  const lineClient = new LineClient(env.LINE_CHANNEL_ACCESS_TOKEN);
   let successCount = 0;
+  let totalCount = 0;
 
   try {
-    if (broadcast.target_type === 'all') {
-      // Use LINE broadcast API (sends to all followers)
-      await lineClient.broadcast([message]);
-      // We don't have exact count for broadcast API, set as 0 (unknown)
-      totalCount = 0;
-      successCount = 0;
-    } else if (broadcast.target_type === 'tag') {
-      if (!broadcast.target_tag_id) {
-        throw new Error('target_tag_id is required for tag-targeted broadcasts');
-      }
-
-      const friends = await getFriendsByTag(db, broadcast.target_tag_id);
-      const followingFriends = friends.filter((f) => f.is_following);
-      totalCount = followingFriends.length;
-
-      // Send in batches with stealth delays to mimic human patterns
-      const now = jstNow();
-      const totalBatches = Math.ceil(followingFriends.length / MULTICAST_BATCH_SIZE);
-      for (let i = 0; i < followingFriends.length; i += MULTICAST_BATCH_SIZE) {
-        const batchIndex = Math.floor(i / MULTICAST_BATCH_SIZE);
-        const batch = followingFriends.slice(i, i + MULTICAST_BATCH_SIZE);
-        const lineUserIds = batch.map((f) => f.line_user_id);
-
-        // Stealth: add staggered delay between batches
-        if (batchIndex > 0) {
-          const delay = calculateStaggerDelay(followingFriends.length, batchIndex);
-          await sleep(delay);
-        }
-
-        // Stealth: add slight variation to text messages
-        let batchMessage = message;
-        if (message.type === 'text' && totalBatches > 1) {
-          batchMessage = { ...message, text: addMessageVariation(message.text, batchIndex) };
-        }
-
-        try {
-          await lineClient.multicast(lineUserIds, [batchMessage]);
-          successCount += batch.length;
-
-          // Log only successfully sent messages
-          for (const friend of batch) {
-            const logId = crypto.randomUUID();
-            await db
-              .prepare(
-                `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-                 VALUES (?, ?, 'outgoing', ?, ?, ?, NULL, ?)`,
-              )
-              .bind(logId, friend.id, broadcast.message_type, broadcast.message_content, broadcastId, now)
-              .run();
-          }
-        } catch (err) {
-          console.error(`Multicast batch ${i / MULTICAST_BATCH_SIZE} failed:`, err);
-          // Continue with next batch; failed batch is not logged
-        }
+    if (b.target_type === "all") {
+      const msg = buildMessage(b.message_type, addMessageVariation(b.message_content));
+      await lineClient.broadcast([msg]);
+      const result = await db.prepare("SELECT COUNT(*) as count FROM friends WHERE is_following = 1").first<{ count: number }>();
+      totalCount = result?.count ?? 0;
+      successCount = totalCount;
+    } else if (b.target_type === "tag" && b.target_tag_id) {
+      const friends = await getFriendsByTag(db, b.target_tag_id);
+      totalCount = friends.length;
+      const batchSize = 500;
+      for (let i = 0; i < friends.length; i += batchSize) {
+        const batch = friends.slice(i, i + batchSize) as Array<{ line_user_id: string }>;
+        const userIds = batch.map((f) => f.line_user_id);
+        const msg = buildMessage(b.message_type, addMessageVariation(b.message_content));
+        await lineClient.multicast(userIds, [msg]);
+        successCount += batch.length;
+        const delay = calculateStaggerDelay(i / batchSize, friends.length);
+        if (delay > 0) await new Promise((r) => setTimeout(r, delay));
       }
     }
-
-    await updateBroadcastStatus(db, broadcastId, 'sent', { totalCount, successCount });
-  } catch (err) {
-    // On failure, reset to draft so it can be retried
-    await updateBroadcastStatus(db, broadcastId, 'draft');
-    throw err;
-  }
-
-  return (await getBroadcastById(db, broadcastId))!;
-}
-
-export async function processScheduledBroadcasts(
-  db: D1Database,
-  lineClient: LineClient,
-): Promise<void> {
-  const now = jstNow();
-  const allBroadcasts = await getBroadcasts(db);
-
-  const nowMs = Date.now();
-  const scheduled = allBroadcasts.filter(
-    (b) =>
-      b.status === 'scheduled' &&
-      b.scheduled_at !== null &&
-      new Date(b.scheduled_at).getTime() <= nowMs,
-  );
-
-  for (const broadcast of scheduled) {
-    try {
-      await processBroadcastSend(db, lineClient, broadcast.id);
-    } catch (err) {
-      console.error(`Failed to send scheduled broadcast ${broadcast.id}:`, err);
-      // Continue with next broadcast
-    }
+    await updateBroadcastStatus(db, broadcastId, "sent", { totalCount, successCount });
+  } catch (e) {
+    await updateBroadcastStatus(db, broadcastId, "failed");
   }
 }
 
-function buildMessage(messageType: string, messageContent: string): Message {
-  if (messageType === 'text') {
-    return { type: 'text', text: messageContent };
+export async function processScheduledBroadcasts(db: D1Database, env: Env) {
+  const broadcasts = await getScheduledBroadcastsDue(db);
+  for (const broadcast of broadcasts as Array<{ id: number }>) {
+    await processBroadcastSend(db, env, broadcast.id);
   }
-
-  if (messageType === 'image') {
-    try {
-      const parsed = JSON.parse(messageContent) as {
-        originalContentUrl: string;
-        previewImageUrl: string;
-      };
-      return {
-        type: 'image',
-        originalContentUrl: parsed.originalContentUrl,
-        previewImageUrl: parsed.previewImageUrl,
-      };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-
-  if (messageType === 'flex') {
-    try {
-      const contents = JSON.parse(messageContent);
-      return { type: 'flex', altText: 'Message', contents };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-
-  return { type: 'text', text: messageContent };
 }

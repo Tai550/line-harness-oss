@@ -1,6 +1,10 @@
-import type { NextConfig } from 'next'
+import path from "node:path";
+import type { NextConfig } from "next";
+
 const nextConfig: NextConfig = {
-  output: 'export',
-  transpilePackages: ['@line-crm/shared'],
-}
-export default nextConfig
+  output: "export",
+  outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
+  transpilePackages: ["@line-crm/shared"],
+};
+
+export default nextConfig;
